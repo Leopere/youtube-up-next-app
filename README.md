@@ -47,6 +47,20 @@ Install Chromium with Homebrew if needed:
 brew install --cask chromium
 ```
 
+## Companion App
+
+This app is separate from the YouTube Music desktop app. On this Mac, the installed YouTube Music app is the th-ch desktop app:
+
+- Upstream: `https://github.com/th-ch/youtube-music`
+- Bundle id: `com.github.th-ch.youtube-music`
+- App path: `/Applications/YouTube Music.app`
+
+Open it with:
+
+```sh
+./scripts/open-youtube-music.sh
+```
+
 ## Install
 
 From this repository:
