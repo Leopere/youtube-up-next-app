@@ -1,11 +1,9 @@
-# YouTube Up Next App
+# YouTube Up Next
 
-Local Mac app wrapper for YouTube with a custom Up Next side pane.
+A browser extension for YouTube that adds a local Up Next queue side pane.
 
 ## What it does
 
-- Opens YouTube in a standalone Chromium app window.
-- Loads the local `extension/` unpacked Chrome extension.
 - Adds `+ Next` and `+ Last` buttons on YouTube thumbnails.
 - Adds a fixed side pane with queued videos.
 - Lets you play, remove, clear, and reorder queued videos.
@@ -14,8 +12,6 @@ Local Mac app wrapper for YouTube with a custom Up Next side pane.
 - Keeps played videos in the local queue history, greyed out, instead of deleting them.
 - Automatically opens the next queued video when the current one ends.
 - Opens watch pages in Theater mode.
-- Launches the app window at `1600x900` from position `80,60` to keep a predictable video-first 16:9 shape.
-- Uses the YouTube favicon as the Mac app icon.
 
 The queue is local extension storage. It does not create or edit real YouTube playlists.
 
@@ -30,22 +26,14 @@ Played state is also stored locally. The queue count is shown as `unplayed/total
 
 ## Login
 
-The app uses Chromium so the local extension can be loaded reliably. It uses a persistent profile at:
+Use the extension in a normal signed-in browser session. Google rejects sign-in inside many embedded browsers, including Electron, with a "browser or app may not be secure" error. For that reason this project is distributed primarily as a browser extension, not as a standalone Electron app.
 
-`~/Library/Application Support/YouTube Up Next Chromium`
-
-That profile is separate from Google Chrome, so it will not inherit your Chrome login. Sign in to YouTube inside `YouTube Up Next.app` once; the app will reuse the same profile on later launches.
+Once installed in Chrome, Edge, Brave, or Chromium, it runs inside your existing YouTube session.
 
 ## Requirements
 
-- macOS
-- Chromium installed at `/Applications/Chromium.app`
-
-Install Chromium with Homebrew if needed:
-
-```sh
-brew install --cask chromium
-```
+- Chrome, Edge, Brave, or Chromium
+- Developer mode enabled for manual extension install
 
 ## Companion App
 
@@ -61,26 +49,55 @@ Open it with:
 ./scripts/open-youtube-music.sh
 ```
 
-## Install
+## Install Extension
 
-From this repository:
+1. Download or clone this repository.
+2. Open `chrome://extensions` in Chrome, Edge, Brave, or Chromium.
+3. Enable `Developer mode`.
+4. Click `Load unpacked`.
+5. Select the `extension/` folder from this repository.
+6. Open YouTube in that browser.
+
+For an app-like window, create a browser app/shortcut for YouTube after loading the extension. The extension will still run in that YouTube app window because it is installed in the browser profile.
+
+## Package Extension
+
+Create a distributable extension zip:
+
+```sh
+./scripts/package-extension.sh
+```
+
+The zip is written to:
+
+`dist/YouTube-Up-Next-extension.zip`
+
+Manual extension install still requires unpacking the zip and loading the unpacked folder. Publishing to the Chrome Web Store would be the cleaner public install path.
+
+## Optional Local Mac Wrapper
+
+This repository still includes a Mac wrapper installer for local use. It launches YouTube with the extension preloaded in Chromium and opens the window at `1600x900` from position `80,60`.
+
+This path requires Chromium at `/Applications/Chromium.app` and uses a separate browser profile:
+
+`~/Library/Application Support/YouTube Up Next Chromium`
+
+Install Chromium if needed:
+
+```sh
+brew install --cask chromium
+```
+
+Install the wrapper:
 
 ```sh
 ./scripts/install.sh
 open "/Applications/YouTube Up Next.app"
 ```
 
-The installer builds a self-contained app bundle at:
+## Package Mac Wrapper
 
-`/Applications/YouTube Up Next.app`
-
-The extension is copied into:
-
-`/Applications/YouTube Up Next.app/Contents/Resources/extension`
-
-## Package
-
-Create a distributable zip:
+Create a local macOS wrapper zip:
 
 ```sh
 ./scripts/package.sh
@@ -90,4 +107,4 @@ The zip is written to:
 
 `dist/YouTube-Up-Next-macOS.zip`
 
-The generated app and zip are build artifacts and are intentionally ignored by git.
+The generated app and zips are build artifacts and are intentionally ignored by git.

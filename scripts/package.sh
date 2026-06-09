@@ -6,8 +6,8 @@ DIST_DIR="$ROOT_DIR/dist"
 APP_PATH="$DIST_DIR/YouTube Up Next.app"
 ZIP_PATH="$DIST_DIR/YouTube-Up-Next-macOS.zip"
 
-rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
+rm -rf "$APP_PATH" "$ZIP_PATH"
 
 "$ROOT_DIR/scripts/install.sh" "$APP_PATH"
 

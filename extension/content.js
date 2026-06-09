@@ -48,18 +48,48 @@
   let advancing = false;
   let scanTimer;
 
-  const storage = {
-    get(defaults) {
-      return new Promise((resolve) => {
-        chrome.storage.local.get(defaults, resolve);
-      });
-    },
-    set(values) {
-      return new Promise((resolve) => {
-        chrome.storage.local.set(values, resolve);
-      });
+  const storage = (() => {
+    if (globalThis.chrome && chrome.storage && chrome.storage.local) {
+      return {
+        get(defaults) {
+          return new Promise((resolve) => {
+            chrome.storage.local.get(defaults, resolve);
+          });
+        },
+        set(values) {
+          return new Promise((resolve) => {
+            chrome.storage.local.set(values, resolve);
+          });
+        }
+      };
     }
-  };
+
+    const prefix = "ytun:";
+    return {
+      async get(defaults) {
+        return Object.keys(defaults).reduce((result, key) => {
+          const raw = window.localStorage.getItem(`${prefix}${key}`);
+          if (!raw) {
+            result[key] = defaults[key];
+            return result;
+          }
+
+          try {
+            result[key] = JSON.parse(raw);
+          } catch (_error) {
+            result[key] = defaults[key];
+          }
+
+          return result;
+        }, {});
+      },
+      async set(values) {
+        Object.entries(values).forEach(([key, value]) => {
+          window.localStorage.setItem(`${prefix}${key}`, JSON.stringify(value));
+        });
+      }
+    };
+  })();
 
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();

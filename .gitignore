@@ -1,4 +1,6 @@
 .DS_Store
 dist/
+release/
 *.app/
 node_modules/
+npm-debug.log*
