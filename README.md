@@ -13,7 +13,8 @@ Local Mac app wrapper for YouTube with a custom Up Next side pane.
 - Supports `+ Next` to put a video at the front of the queue and `+ Last` to put it at the end.
 - Keeps played videos in the local queue history, greyed out, instead of deleting them.
 - Automatically opens the next queued video when the current one ends.
-- Opens watch pages in Theater mode and expands the theater player to the app viewport where YouTube allows it.
+- Opens watch pages in Theater mode.
+- Launches the app window at `1600x900` from position `80,60` to keep a predictable video-first 16:9 shape.
 - Uses the YouTube favicon as the Mac app icon.
 
 The queue is local extension storage. It does not create or edit real YouTube playlists.

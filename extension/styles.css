@@ -6,28 +6,6 @@
   z-index: 2147483000;
 }
 
-html.ytun-watch-page ytd-watch-flexy[theater] #player-theater-container,
-html.ytun-watch-page ytd-watch-flexy[theater] #player-full-bleed-container,
-html.ytun-watch-page ytd-watch-flexy[theater] #player-container,
-html.ytun-watch-page ytd-watch-flexy[theater] ytd-player {
-  height: calc(100vh - 56px) !important;
-  max-height: calc(100vh - 56px) !important;
-  min-height: calc(100vh - 56px) !important;
-}
-
-html.ytun-watch-page ytd-watch-flexy[theater] #player-container-inner,
-html.ytun-watch-page ytd-watch-flexy[theater] #player,
-html.ytun-watch-page ytd-watch-flexy[theater] #movie_player,
-html.ytun-watch-page ytd-watch-flexy[theater] .html5-video-container,
-html.ytun-watch-page ytd-watch-flexy[theater] .html5-main-video {
-  height: 100% !important;
-  max-height: 100% !important;
-}
-
-html.ytun-watch-page ytd-watch-flexy[theater] .html5-main-video {
-  object-fit: contain !important;
-}
-
 #ytun-root button {
   font: inherit;
 }
