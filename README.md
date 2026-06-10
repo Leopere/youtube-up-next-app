@@ -1,6 +1,6 @@
 # YouTube Up Next
 
-A browser extension for YouTube that adds a local Up Next queue side pane.
+An Electron desktop app and browser extension for YouTube that adds a local Up Next queue side pane.
 
 ## What it does
 
@@ -26,14 +26,59 @@ Played state is also stored locally. The queue count is shown as `unplayed/total
 
 ## Login
 
-Use the extension in a normal signed-in browser session. Google rejects sign-in inside many embedded browsers, including Electron, with a "browser or app may not be secure" error. For that reason this project is distributed primarily as a browser extension, not as a standalone Electron app.
+The Electron app uses its own local profile:
 
-Once installed in Chrome, Edge, Brave, or Chromium, it runs inside your existing YouTube session.
+`~/Library/Application Support/YouTube Up Next`
+
+Sign in to YouTube inside the Electron app. This profile is separate from Chrome, Chromium, and the older Chromium wrapper profile, so existing browser sign-ins are not shared.
+
+Google can reject sign-in inside embedded browsers on some accounts or flows. If that happens, use the browser extension path or the legacy Chromium wrapper.
 
 ## Requirements
 
-- Chrome, Edge, Brave, or Chromium
+- Node.js and npm for local Electron development and packaging
+- macOS for the packaged desktop app scripts
+- Chrome, Edge, Brave, or Chromium for the optional browser extension install
 - Developer mode enabled for manual extension install
+
+## Run Electron App
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Run the desktop app:
+
+```sh
+npm start
+```
+
+## Install Electron App
+
+Package and install the macOS Electron app to `/Applications/YouTube Up Next.app`:
+
+```sh
+./scripts/install.sh
+open "/Applications/YouTube Up Next.app"
+```
+
+Install to another path:
+
+```sh
+./scripts/install.sh "$HOME/Applications/YouTube Up Next.app"
+```
+
+## Package Electron App
+
+Create a local macOS Electron build and zip:
+
+```sh
+./scripts/package.sh
+```
+
+The generated app and zip are written to `release/`.
 
 ## Companion App
 
@@ -74,9 +119,9 @@ The zip is written to:
 
 Manual extension install still requires unpacking the zip and loading the unpacked folder. Publishing to the Chrome Web Store would be the cleaner public install path.
 
-## Optional Local Mac Wrapper
+## Legacy Chromium Wrapper
 
-This repository still includes a Mac wrapper installer for local use. It launches YouTube with the extension preloaded in Chromium and opens the window at `1600x900` from position `80,60`.
+This repository still includes the older Mac wrapper installer for local fallback use. It launches YouTube with the extension preloaded in Chromium and opens the window at `1600x900` from position `80,60`.
 
 This path requires Chromium at `/Applications/Chromium.app` and uses a separate browser profile:
 
@@ -88,23 +133,11 @@ Install Chromium if needed:
 brew install --cask chromium
 ```
 
-Install the wrapper:
+Install the legacy wrapper:
 
 ```sh
-./scripts/install.sh
+./scripts/install-chromium-wrapper.sh
 open "/Applications/YouTube Up Next.app"
 ```
-
-## Package Mac Wrapper
-
-Create a local macOS wrapper zip:
-
-```sh
-./scripts/package.sh
-```
-
-The zip is written to:
-
-`dist/YouTube-Up-Next-macOS.zip`
 
 The generated app and zips are build artifacts and are intentionally ignored by git.

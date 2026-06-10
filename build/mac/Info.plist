@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.entertainment</string>
+  <key>NSCameraUsageDescription</key>
+  <string>YouTube may request camera access for video features.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>YouTube may request microphone access for video features.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>YouTube may request audio capture access for video features.</string>
+</dict>
+</plist>

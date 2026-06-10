@@ -1,0 +1,20 @@
+{
+  "name": "youtube-up-next-app",
+  "version": "0.3.0",
+  "description": "Electron desktop app for the YouTube Up Next queue extension.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "./scripts/package.sh",
+    "package:mac": "./scripts/package.sh",
+    "install:mac": "./scripts/install.sh",
+    "install:chromium-wrapper": "./scripts/install-chromium-wrapper.sh",
+    "package:extension": "./scripts/package-extension.sh"
+  },
+  "private": true,
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/packager": "^20.0.1",
+    "electron": "^42.4.0"
+  }
+}
