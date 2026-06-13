@@ -10,14 +10,41 @@
   const PLAYBACK_SPEED_KEY = "ytUpNextPlaybackSpeed";
   const SPONSORBLOCK_ENABLED_KEY = "ytUpNextSponsorBlockEnabled";
   const SPONSORBLOCK_ACKNOWLEDGED_KEY = "ytUpNextSponsorBlockAcknowledged";
+  const SPONSORBLOCK_MODE_KEY = "ytUpNextSponsorBlockMode";
   const MAX_QUEUE_SIZE = 200;
   const WATCH_LATER_URL = "https://www.youtube.com/playlist?list=WL";
   const SPEED_MIN = 0.1;
   const SPEED_MAX = 5;
   const SPEED_STEP = 0.1;
   const SPONSORBLOCK_API_URL = "https://sponsor.ajay.app/api/skipSegments";
-  const SPONSORBLOCK_CATEGORIES = ["sponsor"];
   const SPONSORBLOCK_ACTION_TYPES = ["skip"];
+  const SPONSORBLOCK_MODES = {
+    sponsor: {
+      label: "Sponsor",
+      toast: "Sponsors only",
+      categories: ["sponsor"]
+    },
+    quiet: {
+      label: "Quiet",
+      toast: "Quiet playback",
+      categories: ["sponsor", "interaction", "intro", "outro"]
+    },
+    aggressive: {
+      label: "Aggro",
+      toast: "Aggressive skipping",
+      categories: ["sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "hook"]
+    }
+  };
+  const SPONSORBLOCK_MODE_ORDER = ["sponsor", "quiet", "aggressive"];
+  const SPONSORBLOCK_CATEGORY_LABELS = {
+    sponsor: "sponsor",
+    selfpromo: "self-promo",
+    interaction: "interaction",
+    intro: "intro",
+    outro: "outro",
+    preview: "preview",
+    hook: "hook"
+  };
   const VALID_RENDERER_SELECTOR = [
     "ytd-rich-item-renderer",
     "ytd-video-renderer",
@@ -45,6 +72,7 @@
   let playbackSpeed = 1;
   let sponsorBlockEnabled = false;
   let sponsorBlockAcknowledged = false;
+  let sponsorBlockMode = "sponsor";
   let watchLaterItems = [];
   let watchLaterStatus = "idle";
   let watchLaterError = "";
@@ -58,6 +86,7 @@
   let speedValueButton;
   let speedUpButton;
   let sponsorBlockToggle;
+  let sponsorBlockModeButton;
   let shortsDock;
   let toastTimer;
   let currentMainVideo;
@@ -66,6 +95,7 @@
   let advancing = false;
   let scanTimer;
   let sponsorBlockVideoId = "";
+  let sponsorBlockVideoKey = "";
   let sponsorBlockSegments = [];
   let sponsorBlockLoadToken = 0;
   const sponsorBlockCache = new Map();
@@ -132,6 +162,18 @@
 
   function getMainVideoElement() {
     return document.querySelector("video.html5-main-video") || document.querySelector("video");
+  }
+
+  function normalizeSponsorBlockMode(mode) {
+    return Object.prototype.hasOwnProperty.call(SPONSORBLOCK_MODES, mode) ? mode : "sponsor";
+  }
+
+  function sponsorBlockModeConfig(mode) {
+    return SPONSORBLOCK_MODES[normalizeSponsorBlockMode(mode)];
+  }
+
+  function sponsorBlockCacheKey(videoId, mode) {
+    return `${videoId}:${normalizeSponsorBlockMode(mode)}`;
   }
 
   function parseVideoId(urlValue) {
@@ -345,10 +387,37 @@
       runSponsorBlockSkip();
     } else {
       sponsorBlockVideoId = "";
+      sponsorBlockVideoKey = "";
       sponsorBlockSegments = [];
       sponsorBlockLoadToken += 1;
       showToast("SponsorBlock off");
     }
+  }
+
+  async function setSponsorBlockMode(mode) {
+    const nextMode = normalizeSponsorBlockMode(mode);
+    if (nextMode === sponsorBlockMode) {
+      return;
+    }
+
+    sponsorBlockMode = nextMode;
+    sponsorBlockVideoId = "";
+    sponsorBlockVideoKey = "";
+    sponsorBlockSegments = [];
+    sponsorBlockLoadToken += 1;
+    await storage.set({ [SPONSORBLOCK_MODE_KEY]: sponsorBlockMode });
+    updateSpeedModulator();
+    showToast(`SponsorBlock: ${sponsorBlockModeConfig(sponsorBlockMode).toast}`);
+
+    if (sponsorBlockEnabled) {
+      loadSponsorBlockSegments(true);
+    }
+  }
+
+  function cycleSponsorBlockMode() {
+    const currentIndex = SPONSORBLOCK_MODE_ORDER.indexOf(normalizeSponsorBlockMode(sponsorBlockMode));
+    const nextIndex = (currentIndex + 1) % SPONSORBLOCK_MODE_ORDER.length;
+    setSponsorBlockMode(SPONSORBLOCK_MODE_ORDER[nextIndex]);
   }
 
   function applyPlaybackSpeed() {
@@ -548,11 +617,16 @@
       setSponsorBlockEnabled(!sponsorBlockEnabled);
     }, "Toggle SponsorBlock sponsor skipping");
 
+    sponsorBlockModeButton = createButton(sponsorBlockModeConfig(sponsorBlockMode).label, "ytun-sponsor-mode", () => {
+      cycleSponsorBlockMode();
+    }, "Change SponsorBlock skip mode");
+
     wrapper.appendChild(label);
     wrapper.appendChild(speedDownButton);
     wrapper.appendChild(speedValueButton);
     wrapper.appendChild(speedUpButton);
     wrapper.appendChild(sponsorBlockToggle);
+    wrapper.appendChild(sponsorBlockModeButton);
     return wrapper;
   }
 
@@ -572,6 +646,15 @@
       ? "SponsorBlock is on. Submitted sponsor segments will be skipped."
       : "SponsorBlock is off. Click to enable sponsor skipping.";
     sponsorBlockToggle.setAttribute("aria-label", sponsorBlockToggle.title);
+
+    const modeConfig = sponsorBlockModeConfig(sponsorBlockMode);
+    sponsorBlockModeButton.textContent = modeConfig.label;
+    sponsorBlockModeButton.disabled = !sponsorBlockEnabled;
+    sponsorBlockModeButton.classList.toggle("is-active", sponsorBlockEnabled);
+    sponsorBlockModeButton.title = sponsorBlockEnabled
+      ? `SponsorBlock mode: ${modeConfig.toast}. Click to change mode.`
+      : `SponsorBlock mode: ${modeConfig.toast}. Enable SB to use it.`;
+    sponsorBlockModeButton.setAttribute("aria-label", sponsorBlockModeButton.title);
   }
 
   function mount() {
@@ -889,11 +972,12 @@
       .join("");
   }
 
-  function normalizeSponsorBlockSegments(segments) {
+  function normalizeSponsorBlockSegments(segments, mode) {
     if (!Array.isArray(segments)) {
       return [];
     }
 
+    const categories = new Set(sponsorBlockModeConfig(mode).categories);
     return segments
       .map((entry) => {
         const segment = Array.isArray(entry.segment) ? entry.segment : [];
@@ -910,12 +994,13 @@
       .filter((segment) => (
         Number.isFinite(segment.start) &&
         Number.isFinite(segment.end) &&
-        segment.end > segment.start + 0.05
+        segment.end > segment.start + 0.05 &&
+        categories.has(segment.category)
       ))
       .sort((a, b) => a.start - b.start);
   }
 
-  function sponsorBlockApiUrl(videoId, hash) {
+  function sponsorBlockApiUrl(videoId, hash, mode) {
     const url = hash
       ? new URL(`${SPONSORBLOCK_API_URL}/${hash.slice(0, 4)}`)
       : new URL(SPONSORBLOCK_API_URL);
@@ -924,24 +1009,25 @@
       url.searchParams.set("videoID", videoId);
     }
 
-    url.searchParams.set("categories", JSON.stringify(SPONSORBLOCK_CATEGORIES));
+    url.searchParams.set("categories", JSON.stringify(sponsorBlockModeConfig(mode).categories));
     url.searchParams.set("actionTypes", JSON.stringify(SPONSORBLOCK_ACTION_TYPES));
     return url;
   }
 
-  async function fetchSponsorBlockSegments(videoId) {
-    if (sponsorBlockCache.has(videoId)) {
-      return sponsorBlockCache.get(videoId);
+  async function fetchSponsorBlockSegments(videoId, mode) {
+    const cacheKey = sponsorBlockCacheKey(videoId, mode);
+    if (sponsorBlockCache.has(cacheKey)) {
+      return sponsorBlockCache.get(cacheKey);
     }
 
     const hash = await sha256Hex(videoId);
-    const response = await fetch(sponsorBlockApiUrl(videoId, hash).toString(), {
+    const response = await fetch(sponsorBlockApiUrl(videoId, hash, mode).toString(), {
       credentials: "omit",
       cache: "force-cache"
     });
 
     if (response.status === 404) {
-      sponsorBlockCache.set(videoId, []);
+      sponsorBlockCache.set(cacheKey, []);
       return [];
     }
 
@@ -959,8 +1045,8 @@
       rawSegments = match && match.segments;
     }
 
-    const segments = normalizeSponsorBlockSegments(rawSegments);
-    sponsorBlockCache.set(videoId, segments);
+    const segments = normalizeSponsorBlockSegments(rawSegments, mode);
+    sponsorBlockCache.set(cacheKey, segments);
     return segments;
   }
 
@@ -970,27 +1056,32 @@
 
     if (!sponsorBlockEnabled || !videoId || (!isWatchPage() && !isShortsPage())) {
       sponsorBlockVideoId = "";
+      sponsorBlockVideoKey = "";
       sponsorBlockSegments = [];
       return;
     }
 
-    if (!force && sponsorBlockVideoId === videoId) {
+    const requestMode = normalizeSponsorBlockMode(sponsorBlockMode);
+    const requestKey = sponsorBlockCacheKey(videoId, requestMode);
+
+    if (!force && sponsorBlockVideoKey === requestKey) {
       return;
     }
 
     const token = sponsorBlockLoadToken + 1;
     sponsorBlockLoadToken = token;
     sponsorBlockVideoId = videoId;
+    sponsorBlockVideoKey = requestKey;
     sponsorBlockSegments = [];
 
     try {
-      const segments = await fetchSponsorBlockSegments(videoId);
-      if (sponsorBlockLoadToken === token && sponsorBlockVideoId === videoId) {
+      const segments = await fetchSponsorBlockSegments(videoId, requestMode);
+      if (sponsorBlockLoadToken === token && sponsorBlockVideoId === videoId && sponsorBlockVideoKey === requestKey) {
         sponsorBlockSegments = segments;
         runSponsorBlockSkip();
       }
     } catch (_error) {
-      if (sponsorBlockLoadToken === token && sponsorBlockVideoId === videoId) {
+      if (sponsorBlockLoadToken === token && sponsorBlockVideoId === videoId && sponsorBlockVideoKey === requestKey) {
         sponsorBlockSegments = [];
       }
     }
@@ -1019,7 +1110,7 @@
     }
 
     video.currentTime = Math.min(segment.end + 0.03, Number.isFinite(video.duration) ? video.duration : segment.end + 0.03);
-    showToast("Skipped sponsor");
+    showToast(`Skipped ${SPONSORBLOCK_CATEGORY_LABELS[segment.category] || "segment"}`);
   }
 
   function unwatchMainVideo() {
@@ -1296,7 +1387,8 @@
       [ACTIVE_TAB_KEY]: "queue",
       [PLAYBACK_SPEED_KEY]: 1,
       [SPONSORBLOCK_ENABLED_KEY]: false,
-      [SPONSORBLOCK_ACKNOWLEDGED_KEY]: false
+      [SPONSORBLOCK_ACKNOWLEDGED_KEY]: false,
+      [SPONSORBLOCK_MODE_KEY]: "sponsor"
     });
 
     queue = Array.isArray(stored[QUEUE_KEY]) ? stored[QUEUE_KEY].map(normalizeQueueItem) : [];
@@ -1305,6 +1397,7 @@
     playbackSpeed = clampPlaybackSpeed(stored[PLAYBACK_SPEED_KEY]);
     sponsorBlockEnabled = stored[SPONSORBLOCK_ENABLED_KEY] === true;
     sponsorBlockAcknowledged = stored[SPONSORBLOCK_ACKNOWLEDGED_KEY] === true;
+    sponsorBlockMode = normalizeSponsorBlockMode(stored[SPONSORBLOCK_MODE_KEY]);
 
     mount();
     render();

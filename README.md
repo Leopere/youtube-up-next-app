@@ -13,7 +13,7 @@ An Electron desktop app and browser extension for YouTube that adds a local Up N
 - Automatically opens the next queued video when the current one ends.
 - Opens watch pages in Theater mode.
 - Adds a playback speed overlay from `0.10x` to `5.00x` in `0.10x` steps.
-- Adds opt-in SponsorBlock-compatible sponsor skipping with an `SB` overlay toggle.
+- Adds opt-in SponsorBlock-compatible sponsor skipping with `Sponsor`, `Quiet`, and `Aggro` modes.
 
 The queue is local extension storage. It does not create or edit real YouTube playlists.
 
@@ -21,9 +21,15 @@ Played state is also stored locally. The queue count is shown as `unplayed/total
 
 Playback speed is stored locally and reapplied as YouTube navigates between videos.
 
-SponsorBlock support uses the public SponsorBlock API to skip submitted `sponsor` segments. It does not bundle the full SponsorBlock browser extension, submit segments, or vote on segments. It is off by default. Click `SB` in the speed overlay to enable it after acknowledging that this is meant to reduce interruptions during continuous playback and that you should support creators directly when you can.
+SponsorBlock support uses the public SponsorBlock API to skip submitted segments. It does not bundle the full SponsorBlock browser extension, submit segments, or vote on segments. It is off by default. Click `SB` in the speed overlay to enable it after acknowledging that this is meant to reduce interruptions during continuous playback and that you should support creators directly when you can.
 
-When SponsorBlock is on, the `SB` button is red. When a sponsor segment is skipped, the app shows a `Skipped sponsor` toast.
+When SponsorBlock is on, the `SB` button is red. When a segment is skipped, the app shows a toast such as `Skipped sponsor` or `Skipped intro`.
+
+Use the mode button next to `SB` to choose what gets skipped:
+
+- `Sponsor`: skips only submitted sponsor segments.
+- `Quiet`: skips sponsors, interaction reminders, intros, and outros.
+- `Aggro`: skips sponsors, self-promo, interaction reminders, intros, outros, previews, and hooks.
 
 ## Where to Add Videos
 

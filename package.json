@@ -1,6 +1,6 @@
 {
   "name": "youtube-up-next-app",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Electron desktop app for the YouTube Up Next queue extension.",
   "main": "src/main.js",
   "scripts": {

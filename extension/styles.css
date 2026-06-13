@@ -59,7 +59,7 @@
   color: #f1f1f1;
   display: inline-grid;
   gap: 6px;
-  grid-template-columns: auto 30px 60px 30px 34px;
+  grid-template-columns: auto 30px 60px 30px 34px 64px;
   height: 38px;
   padding: 4px 6px 4px 10px;
   position: fixed;
@@ -86,7 +86,8 @@
 }
 
 .ytun-speed-button,
-.ytun-speed-value {
+.ytun-speed-value,
+.ytun-sponsor-mode {
   align-items: center;
   background: #272727;
   border: 1px solid #3f3f3f;
@@ -113,13 +114,15 @@
   width: 60px;
 }
 
-.ytun-speed-button:disabled {
+.ytun-speed-button:disabled,
+.ytun-sponsor-mode:disabled {
   cursor: default;
   opacity: 0.42;
 }
 
 .ytun-speed-button:hover:not(:disabled),
-.ytun-speed-value:hover {
+.ytun-speed-value:hover,
+.ytun-sponsor-mode:hover:not(:disabled) {
   filter: brightness(1.12);
 }
 
@@ -131,6 +134,20 @@
 
 .ytun-sponsor-toggle.is-active {
   background: #cc0000;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.ytun-sponsor-mode {
+  color: #aaa;
+  font-size: 12px;
+  overflow: hidden;
+  padding: 0 7px;
+  text-overflow: ellipsis;
+  width: 64px;
+}
+
+.ytun-sponsor-mode.is-active {
   border-color: rgba(255, 255, 255, 0.3);
   color: #fff;
 }
@@ -518,7 +535,7 @@
 @media (max-width: 560px) {
   .ytun-speed-modulator {
     bottom: 74px;
-    grid-template-columns: 30px 60px 30px 34px;
+    grid-template-columns: 30px 60px 30px 34px 64px;
     right: 12px;
     top: auto;
   }
