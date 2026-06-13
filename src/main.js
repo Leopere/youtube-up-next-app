@@ -20,6 +20,9 @@ const WINDOW_Y = 60;
 app.setName(APP_NAME);
 app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
 
+let mainWindow;
+let pendingOpenUrl;
+
 function isHttpUrl(urlValue) {
   try {
     const url = new URL(urlValue);
@@ -51,6 +54,10 @@ function isAppUrl(urlValue) {
   }
 }
 
+function findLaunchUrl(argv) {
+  return argv.find((arg) => isHttpUrl(arg) && isAppUrl(arg)) || "";
+}
+
 function extensionPath() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "extension");
@@ -61,6 +68,27 @@ function extensionPath() {
 
 function chromeCompatibleUserAgent() {
   return session.defaultSession.getUserAgent().replace(/\sElectron\/\S+/g, "");
+}
+
+function loadAppUrl(targetWindow, url) {
+  targetWindow.loadURL(url || START_URL, {
+    userAgent: chromeCompatibleUserAgent()
+  });
+}
+
+function openAppUrl(url) {
+  if (!mainWindow || !isAppUrl(url)) {
+    return false;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+  loadAppUrl(mainWindow, url);
+  return true;
 }
 
 async function loadUpNextExtension() {
@@ -244,9 +272,9 @@ function configureSession() {
   });
 }
 
-function createWindow() {
+function createWindow(startUrl) {
   const userAgent = chromeCompatibleUserAgent();
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
     x: WINDOW_X,
@@ -285,42 +313,77 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadURL(START_URL, { userAgent });
+  loadAppUrl(mainWindow, startUrl);
   createMenu(mainWindow);
   attachContextMenu(mainWindow);
   return mainWindow;
 }
 
-app.whenReady().then(async () => {
-  setDockIcon();
-  configureSession();
+pendingOpenUrl = findLaunchUrl(process.argv);
 
-  let extensionError;
-  try {
-    await loadUpNextExtension();
-  } catch (error) {
-    extensionError = error;
-    console.error("Could not load the YouTube Up Next extension:", error);
-  }
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on("second-instance", (_event, argv) => {
+    const url = findLaunchUrl(argv);
+    if (url && openAppUrl(url)) {
+      return;
+    }
 
-  createWindow();
-
-  if (extensionError) {
-    dialog.showErrorBox(
-      "YouTube Up Next extension did not load",
-      `The app opened YouTube, but the Up Next extension failed to load.\n\n${extensionError.message || extensionError}`
-    );
-  }
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+
+    if (mainWindow) {
+      openAppUrl(url);
+    } else {
+      pendingOpenUrl = isAppUrl(url) ? url : pendingOpenUrl;
+    }
+  });
+
+  app.whenReady().then(async () => {
+    setDockIcon();
+    configureSession();
+
+    let extensionError;
+    try {
+      await loadUpNextExtension();
+    } catch (error) {
+      extensionError = error;
+      console.error("Could not load the YouTube Up Next extension:", error);
+    }
+
+    createWindow(pendingOpenUrl || START_URL);
+
+    if (extensionError) {
+      dialog.showErrorBox(
+        "YouTube Up Next extension did not load",
+        `The app opened YouTube, but the Up Next extension failed to load.\n\n${extensionError.message || extensionError}`
+      );
+    }
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow(START_URL);
+      } else if (mainWindow) {
+        mainWindow.show();
+      }
+    });
+  });
+
+  app.on("window-all-closed", () => {
+    mainWindow = null;
+
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
+}
