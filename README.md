@@ -12,10 +12,16 @@ An Electron desktop app and browser extension for YouTube that adds a local Up N
 - Keeps played videos in the local queue history, greyed out, instead of deleting them.
 - Automatically opens the next queued video when the current one ends.
 - Opens watch pages in Theater mode.
+- Adds a playback speed overlay from `0.10x` to `5.00x` in `0.10x` steps.
+- Adds built-in SponsorBlock-compatible sponsor skipping with an `SB` overlay toggle.
 
 The queue is local extension storage. It does not create or edit real YouTube playlists.
 
 Played state is also stored locally. The queue count is shown as `unplayed/total`; use `Reset Played` to make greyed videos playable in queue order again.
+
+Playback speed is stored locally and reapplied as YouTube navigates between videos.
+
+SponsorBlock support uses the public SponsorBlock API to skip submitted `sponsor` segments. It does not bundle the full SponsorBlock browser extension, submit segments, or vote on segments. The API lookup is enabled by default and can be toggled from the `SB` button in the speed overlay.
 
 ## Where to Add Videos
 

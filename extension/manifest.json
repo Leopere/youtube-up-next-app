@@ -2,9 +2,12 @@
   "manifest_version": 3,
   "name": "YouTube Up Next Pane",
   "description": "Adds a local Up Next queue side pane to YouTube.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "permissions": ["storage"],
-  "host_permissions": ["https://www.youtube.com/*"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://sponsor.ajay.app/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],

@@ -49,6 +49,92 @@
   right: 208px;
 }
 
+.ytun-speed-modulator {
+  align-items: center;
+  background: rgba(15, 15, 15, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+  box-sizing: border-box;
+  color: #f1f1f1;
+  display: inline-grid;
+  gap: 6px;
+  grid-template-columns: auto 30px 60px 30px 34px;
+  height: 38px;
+  padding: 4px 6px 4px 10px;
+  position: fixed;
+  right: 14px;
+  top: 112px;
+  transition: right 140ms ease-out;
+  z-index: 2147483001;
+}
+
+#ytun-root.is-open .ytun-speed-modulator {
+  right: calc(var(--ytun-panel-width) + 14px);
+}
+
+.ytun-speed-modulator.is-hidden {
+  display: none;
+}
+
+.ytun-speed-label {
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ytun-speed-button,
+.ytun-speed-value {
+  align-items: center;
+  background: #272727;
+  border: 1px solid #3f3f3f;
+  border-radius: 6px;
+  color: #f1f1f1;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  height: 28px;
+  justify-content: center;
+  line-height: 1;
+  min-width: 0;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.ytun-speed-button {
+  width: 30px;
+}
+
+.ytun-speed-value {
+  width: 60px;
+}
+
+.ytun-speed-button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.ytun-speed-button:hover:not(:disabled),
+.ytun-speed-value:hover {
+  filter: brightness(1.12);
+}
+
+.ytun-sponsor-toggle {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #aaa;
+  width: 34px;
+}
+
+.ytun-sponsor-toggle.is-active {
+  background: #cc0000;
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
 #ytun-root.is-open .ytun-toggle,
 #ytun-root.is-open:not(.is-shorts) .ytun-add-current,
 .ytun-add-current.is-hidden {
@@ -430,6 +516,22 @@
 }
 
 @media (max-width: 560px) {
+  .ytun-speed-modulator {
+    bottom: 74px;
+    grid-template-columns: 30px 60px 30px 34px;
+    right: 12px;
+    top: auto;
+  }
+
+  #ytun-root.is-open .ytun-speed-modulator {
+    display: none;
+    right: 12px;
+  }
+
+  .ytun-speed-label {
+    display: none;
+  }
+
   .ytun-panel {
     min-width: 0;
     top: 0;

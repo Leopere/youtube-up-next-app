@@ -7,8 +7,16 @@
   const QUEUE_KEY = "ytUpNextQueue";
   const PANEL_KEY = "ytUpNextPanelOpen";
   const ACTIVE_TAB_KEY = "ytUpNextActiveTab";
+  const PLAYBACK_SPEED_KEY = "ytUpNextPlaybackSpeed";
+  const SPONSORBLOCK_ENABLED_KEY = "ytUpNextSponsorBlockEnabled";
   const MAX_QUEUE_SIZE = 200;
   const WATCH_LATER_URL = "https://www.youtube.com/playlist?list=WL";
+  const SPEED_MIN = 0.1;
+  const SPEED_MAX = 5;
+  const SPEED_STEP = 0.1;
+  const SPONSORBLOCK_API_URL = "https://sponsor.ajay.app/api/skipSegments";
+  const SPONSORBLOCK_CATEGORIES = ["sponsor"];
+  const SPONSORBLOCK_ACTION_TYPES = ["skip"];
   const VALID_RENDERER_SELECTOR = [
     "ytd-rich-item-renderer",
     "ytd-video-renderer",
@@ -33,6 +41,8 @@
   let queue = [];
   let panelOpen = true;
   let activeTab = "queue";
+  let playbackSpeed = 1;
+  let sponsorBlockEnabled = true;
   let watchLaterItems = [];
   let watchLaterStatus = "idle";
   let watchLaterError = "";
@@ -41,12 +51,22 @@
   let toggleButton;
   let addCurrentNextButton;
   let addCurrentLastButton;
+  let speedModulator;
+  let speedDownButton;
+  let speedValueButton;
+  let speedUpButton;
+  let sponsorBlockToggle;
   let shortsDock;
   let toastTimer;
   let currentMainVideo;
   let currentMainVideoEndedHandler;
+  let currentMainVideoTimeHandler;
   let advancing = false;
   let scanTimer;
+  let sponsorBlockVideoId = "";
+  let sponsorBlockSegments = [];
+  let sponsorBlockLoadToken = 0;
+  const sponsorBlockCache = new Map();
 
   const storage = (() => {
     if (globalThis.chrome && chrome.storage && chrome.storage.local) {
@@ -93,6 +113,23 @@
 
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function clampPlaybackSpeed(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 1;
+    }
+
+    return Math.min(SPEED_MAX, Math.max(SPEED_MIN, Math.round(numeric * 10) / 10));
+  }
+
+  function formatPlaybackSpeed(value) {
+    return `${clampPlaybackSpeed(value).toFixed(2)}x`;
+  }
+
+  function getMainVideoElement() {
+    return document.querySelector("video.html5-main-video") || document.querySelector("video");
   }
 
   function parseVideoId(urlValue) {
@@ -266,6 +303,42 @@
     }
   }
 
+  async function setPlaybackSpeed(value) {
+    playbackSpeed = clampPlaybackSpeed(value);
+    applyPlaybackSpeed();
+    updateSpeedModulator();
+    await storage.set({ [PLAYBACK_SPEED_KEY]: playbackSpeed });
+  }
+
+  async function setSponsorBlockEnabled(enabled) {
+    sponsorBlockEnabled = Boolean(enabled);
+    await storage.set({ [SPONSORBLOCK_ENABLED_KEY]: sponsorBlockEnabled });
+    updateSpeedModulator();
+
+    if (sponsorBlockEnabled) {
+      loadSponsorBlockSegments(true);
+      runSponsorBlockSkip();
+    } else {
+      sponsorBlockVideoId = "";
+      sponsorBlockSegments = [];
+      sponsorBlockLoadToken += 1;
+    }
+  }
+
+  function applyPlaybackSpeed() {
+    const video = currentMainVideo && currentMainVideo.isConnected
+      ? currentMainVideo
+      : getMainVideoElement();
+    if (!video) {
+      return;
+    }
+
+    const nextSpeed = clampPlaybackSpeed(playbackSpeed);
+    if (Math.abs(video.playbackRate - nextSpeed) > 0.001) {
+      video.playbackRate = nextSpeed;
+    }
+  }
+
   function queueLabel(position) {
     return position === "next" ? "Up Next" : "Up Last";
   }
@@ -424,6 +497,57 @@
     }, 1600);
   }
 
+  function createSpeedModulator() {
+    const wrapper = document.createElement("div");
+    wrapper.className = "ytun-speed-modulator";
+    wrapper.setAttribute("aria-label", "Playback speed");
+
+    const label = document.createElement("span");
+    label.className = "ytun-speed-label";
+    label.textContent = "Speed";
+
+    speedDownButton = createButton("-", "ytun-speed-button", () => {
+      setPlaybackSpeed(playbackSpeed - SPEED_STEP);
+    }, "Decrease playback speed");
+
+    speedValueButton = createButton(formatPlaybackSpeed(playbackSpeed), "ytun-speed-value", () => {
+      setPlaybackSpeed(1);
+    }, "Reset playback speed to 1x");
+
+    speedUpButton = createButton("+", "ytun-speed-button", () => {
+      setPlaybackSpeed(playbackSpeed + SPEED_STEP);
+    }, "Increase playback speed");
+
+    sponsorBlockToggle = createButton("SB", "ytun-speed-button ytun-sponsor-toggle", () => {
+      setSponsorBlockEnabled(!sponsorBlockEnabled);
+    }, "Toggle SponsorBlock sponsor skipping");
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(speedDownButton);
+    wrapper.appendChild(speedValueButton);
+    wrapper.appendChild(speedUpButton);
+    wrapper.appendChild(sponsorBlockToggle);
+    return wrapper;
+  }
+
+  function updateSpeedModulator() {
+    if (!speedModulator) {
+      return;
+    }
+
+    const hasVideo = Boolean(getCurrentVideo());
+    speedModulator.classList.toggle("is-hidden", !hasVideo);
+    speedValueButton.textContent = formatPlaybackSpeed(playbackSpeed);
+    speedDownButton.disabled = playbackSpeed <= SPEED_MIN;
+    speedUpButton.disabled = playbackSpeed >= SPEED_MAX;
+    sponsorBlockToggle.classList.toggle("is-active", sponsorBlockEnabled);
+    sponsorBlockToggle.setAttribute("aria-pressed", sponsorBlockEnabled ? "true" : "false");
+    sponsorBlockToggle.title = sponsorBlockEnabled
+      ? "SponsorBlock sponsor skipping is on"
+      : "SponsorBlock sponsor skipping is off";
+    sponsorBlockToggle.setAttribute("aria-label", sponsorBlockToggle.title);
+  }
+
   function mount() {
     root = document.createElement("div");
     root.id = "ytun-root";
@@ -439,6 +563,8 @@
     addCurrentLastButton = createButton("+ Last", "ytun-add-current ytun-add-last", () => {
       addVideo(getCurrentVideo(), "last");
     }, "Add current video or short to the end");
+
+    speedModulator = createSpeedModulator();
 
     shortsDock = document.createElement("div");
     shortsDock.className = "ytun-shorts-dock";
@@ -462,6 +588,7 @@
     root.appendChild(toggleButton);
     root.appendChild(addCurrentNextButton);
     root.appendChild(addCurrentLastButton);
+    root.appendChild(speedModulator);
     root.appendChild(shortsDock);
     root.appendChild(panel);
     document.documentElement.appendChild(root);
@@ -599,6 +726,7 @@
     toggleButton.textContent = `Up Next ${unplayedCount()}/${queue.length}`;
     addCurrentNextButton.classList.toggle("is-hidden", !hasCurrentVideo);
     addCurrentLastButton.classList.toggle("is-hidden", !hasCurrentVideo);
+    updateSpeedModulator();
   }
 
   function renderQueueItem(item, index) {
@@ -723,25 +851,194 @@
     });
   }
 
-  function watchMainVideo() {
-    if (!["/watch", "/shorts"].some((path) => window.location.pathname.startsWith(path))) {
+  async function sha256Hex(value) {
+    if (!window.crypto || !window.crypto.subtle || !window.TextEncoder) {
+      return "";
+    }
+
+    const bytes = new TextEncoder().encode(value);
+    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function normalizeSponsorBlockSegments(segments) {
+    if (!Array.isArray(segments)) {
+      return [];
+    }
+
+    return segments
+      .map((entry) => {
+        const segment = Array.isArray(entry.segment) ? entry.segment : [];
+        const start = Number(segment[0]);
+        const end = Number(segment[1]);
+
+        return {
+          start,
+          end,
+          category: entry.category || "sponsor",
+          uuid: entry.UUID || ""
+        };
+      })
+      .filter((segment) => (
+        Number.isFinite(segment.start) &&
+        Number.isFinite(segment.end) &&
+        segment.end > segment.start + 0.05
+      ))
+      .sort((a, b) => a.start - b.start);
+  }
+
+  function sponsorBlockApiUrl(videoId, hash) {
+    const url = hash
+      ? new URL(`${SPONSORBLOCK_API_URL}/${hash.slice(0, 4)}`)
+      : new URL(SPONSORBLOCK_API_URL);
+
+    if (!hash) {
+      url.searchParams.set("videoID", videoId);
+    }
+
+    url.searchParams.set("categories", JSON.stringify(SPONSORBLOCK_CATEGORIES));
+    url.searchParams.set("actionTypes", JSON.stringify(SPONSORBLOCK_ACTION_TYPES));
+    return url;
+  }
+
+  async function fetchSponsorBlockSegments(videoId) {
+    if (sponsorBlockCache.has(videoId)) {
+      return sponsorBlockCache.get(videoId);
+    }
+
+    const hash = await sha256Hex(videoId);
+    const response = await fetch(sponsorBlockApiUrl(videoId, hash).toString(), {
+      credentials: "omit",
+      cache: "force-cache"
+    });
+
+    if (response.status === 404) {
+      sponsorBlockCache.set(videoId, []);
+      return [];
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    let rawSegments = data;
+
+    if (hash) {
+      const match = Array.isArray(data)
+        ? data.find((entry) => entry.videoID === videoId || entry.hash === hash)
+        : null;
+      rawSegments = match && match.segments;
+    }
+
+    const segments = normalizeSponsorBlockSegments(rawSegments);
+    sponsorBlockCache.set(videoId, segments);
+    return segments;
+  }
+
+  async function loadSponsorBlockSegments(force) {
+    const video = getCurrentVideo();
+    const videoId = video && video.id;
+
+    if (!sponsorBlockEnabled || !videoId || (!isWatchPage() && !isShortsPage())) {
+      sponsorBlockVideoId = "";
+      sponsorBlockSegments = [];
       return;
     }
 
-    const mainVideo = document.querySelector("video.html5-main-video");
-    if (!mainVideo || mainVideo === currentMainVideo) {
+    if (!force && sponsorBlockVideoId === videoId) {
       return;
     }
 
+    const token = sponsorBlockLoadToken + 1;
+    sponsorBlockLoadToken = token;
+    sponsorBlockVideoId = videoId;
+    sponsorBlockSegments = [];
+
+    try {
+      const segments = await fetchSponsorBlockSegments(videoId);
+      if (sponsorBlockLoadToken === token && sponsorBlockVideoId === videoId) {
+        sponsorBlockSegments = segments;
+        runSponsorBlockSkip();
+      }
+    } catch (_error) {
+      if (sponsorBlockLoadToken === token && sponsorBlockVideoId === videoId) {
+        sponsorBlockSegments = [];
+      }
+    }
+  }
+
+  function runSponsorBlockSkip() {
+    if (!sponsorBlockEnabled || sponsorBlockSegments.length === 0) {
+      return;
+    }
+
+    const video = currentMainVideo && currentMainVideo.isConnected
+      ? currentMainVideo
+      : getMainVideoElement();
+    if (!video || !Number.isFinite(video.currentTime)) {
+      return;
+    }
+
+    const currentTime = video.currentTime;
+    const segment = sponsorBlockSegments.find((entry) => (
+      currentTime >= entry.start - 0.06 &&
+      currentTime < entry.end - 0.08
+    ));
+
+    if (!segment) {
+      return;
+    }
+
+    video.currentTime = Math.min(segment.end + 0.03, Number.isFinite(video.duration) ? video.duration : segment.end + 0.03);
+    showToast("Skipped sponsor");
+  }
+
+  function unwatchMainVideo() {
     if (currentMainVideo && currentMainVideoEndedHandler) {
       currentMainVideo.removeEventListener("ended", currentMainVideoEndedHandler);
     }
+    if (currentMainVideo && currentMainVideoTimeHandler) {
+      currentMainVideo.removeEventListener("timeupdate", currentMainVideoTimeHandler);
+    }
+
+    currentMainVideo = null;
+    currentMainVideoEndedHandler = null;
+    currentMainVideoTimeHandler = null;
+  }
+
+  function watchMainVideo() {
+    if (!["/watch", "/shorts"].some((path) => window.location.pathname.startsWith(path))) {
+      unwatchMainVideo();
+      return;
+    }
+
+    const mainVideo = getMainVideoElement();
+    if (!mainVideo) {
+      unwatchMainVideo();
+      return;
+    }
+
+    if (mainVideo === currentMainVideo) {
+      applyPlaybackSpeed();
+      return;
+    }
+
+    unwatchMainVideo();
 
     currentMainVideo = mainVideo;
     currentMainVideoEndedHandler = () => {
       window.setTimeout(() => playNext(), 120);
     };
+    currentMainVideoTimeHandler = () => {
+      runSponsorBlockSkip();
+    };
+    applyPlaybackSpeed();
     currentMainVideo.addEventListener("ended", currentMainVideoEndedHandler);
+    currentMainVideo.addEventListener("timeupdate", currentMainVideoTimeHandler);
+    loadSponsorBlockSegments(true);
   }
 
   function ensureTheaterMode() {
@@ -771,6 +1068,9 @@
       addThumbnailButtons();
       watchMainVideo();
       ensureTheaterMode();
+      applyPlaybackSpeed();
+      loadSponsorBlockSegments();
+      runSponsorBlockSkip();
       updateShell();
     }, 250);
   }
@@ -967,12 +1267,16 @@
     const stored = await storage.get({
       [QUEUE_KEY]: [],
       [PANEL_KEY]: true,
-      [ACTIVE_TAB_KEY]: "queue"
+      [ACTIVE_TAB_KEY]: "queue",
+      [PLAYBACK_SPEED_KEY]: 1,
+      [SPONSORBLOCK_ENABLED_KEY]: true
     });
 
     queue = Array.isArray(stored[QUEUE_KEY]) ? stored[QUEUE_KEY].map(normalizeQueueItem) : [];
     panelOpen = stored[PANEL_KEY] !== false;
     activeTab = stored[ACTIVE_TAB_KEY] === "watch-later" ? "watch-later" : "queue";
+    playbackSpeed = clampPlaybackSpeed(stored[PLAYBACK_SPEED_KEY]);
+    sponsorBlockEnabled = stored[SPONSORBLOCK_ENABLED_KEY] !== false;
 
     mount();
     render();
