@@ -13,7 +13,7 @@ An Electron desktop app and browser extension for YouTube that adds a local Up N
 - Automatically opens the next queued video when the current one ends.
 - Opens watch pages in Theater mode.
 - Adds a playback speed overlay from `0.10x` to `5.00x` in `0.10x` steps.
-- Adds built-in SponsorBlock-compatible sponsor skipping with an `SB` overlay toggle.
+- Adds opt-in SponsorBlock-compatible sponsor skipping with an `SB` overlay toggle.
 
 The queue is local extension storage. It does not create or edit real YouTube playlists.
 
@@ -21,7 +21,9 @@ Played state is also stored locally. The queue count is shown as `unplayed/total
 
 Playback speed is stored locally and reapplied as YouTube navigates between videos.
 
-SponsorBlock support uses the public SponsorBlock API to skip submitted `sponsor` segments. It does not bundle the full SponsorBlock browser extension, submit segments, or vote on segments. The API lookup is enabled by default and can be toggled from the `SB` button in the speed overlay.
+SponsorBlock support uses the public SponsorBlock API to skip submitted `sponsor` segments. It does not bundle the full SponsorBlock browser extension, submit segments, or vote on segments. It is off by default. Click `SB` in the speed overlay to enable it after acknowledging that this is meant to reduce interruptions during continuous playback and that you should support creators directly when you can.
+
+When SponsorBlock is on, the `SB` button is red. When a sponsor segment is skipped, the app shows a `Skipped sponsor` toast.
 
 ## Where to Add Videos
 

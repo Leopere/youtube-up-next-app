@@ -9,6 +9,7 @@
   const ACTIVE_TAB_KEY = "ytUpNextActiveTab";
   const PLAYBACK_SPEED_KEY = "ytUpNextPlaybackSpeed";
   const SPONSORBLOCK_ENABLED_KEY = "ytUpNextSponsorBlockEnabled";
+  const SPONSORBLOCK_ACKNOWLEDGED_KEY = "ytUpNextSponsorBlockAcknowledged";
   const MAX_QUEUE_SIZE = 200;
   const WATCH_LATER_URL = "https://www.youtube.com/playlist?list=WL";
   const SPEED_MIN = 0.1;
@@ -42,7 +43,8 @@
   let panelOpen = true;
   let activeTab = "queue";
   let playbackSpeed = 1;
-  let sponsorBlockEnabled = true;
+  let sponsorBlockEnabled = false;
+  let sponsorBlockAcknowledged = false;
   let watchLaterItems = [];
   let watchLaterStatus = "idle";
   let watchLaterError = "";
@@ -311,17 +313,41 @@
   }
 
   async function setSponsorBlockEnabled(enabled) {
-    sponsorBlockEnabled = Boolean(enabled);
-    await storage.set({ [SPONSORBLOCK_ENABLED_KEY]: sponsorBlockEnabled });
+    const nextEnabled = Boolean(enabled);
+
+    if (nextEnabled && !sponsorBlockAcknowledged) {
+      const accepted = window.confirm([
+        "SponsorBlock skips submitted sponsor reads to reduce interruptions during continuous playback.",
+        "",
+        "Please support creators directly when you can.",
+        "",
+        "Enable SponsorBlock?"
+      ].join("\n"));
+
+      if (!accepted) {
+        updateSpeedModulator();
+        return;
+      }
+
+      sponsorBlockAcknowledged = true;
+    }
+
+    sponsorBlockEnabled = nextEnabled;
+    await storage.set({
+      [SPONSORBLOCK_ENABLED_KEY]: sponsorBlockEnabled,
+      [SPONSORBLOCK_ACKNOWLEDGED_KEY]: sponsorBlockAcknowledged
+    });
     updateSpeedModulator();
 
     if (sponsorBlockEnabled) {
+      showToast("SponsorBlock on");
       loadSponsorBlockSegments(true);
       runSponsorBlockSkip();
     } else {
       sponsorBlockVideoId = "";
       sponsorBlockSegments = [];
       sponsorBlockLoadToken += 1;
+      showToast("SponsorBlock off");
     }
   }
 
@@ -543,8 +569,8 @@
     sponsorBlockToggle.classList.toggle("is-active", sponsorBlockEnabled);
     sponsorBlockToggle.setAttribute("aria-pressed", sponsorBlockEnabled ? "true" : "false");
     sponsorBlockToggle.title = sponsorBlockEnabled
-      ? "SponsorBlock sponsor skipping is on"
-      : "SponsorBlock sponsor skipping is off";
+      ? "SponsorBlock is on. Submitted sponsor segments will be skipped."
+      : "SponsorBlock is off. Click to enable sponsor skipping.";
     sponsorBlockToggle.setAttribute("aria-label", sponsorBlockToggle.title);
   }
 
@@ -1269,14 +1295,16 @@
       [PANEL_KEY]: true,
       [ACTIVE_TAB_KEY]: "queue",
       [PLAYBACK_SPEED_KEY]: 1,
-      [SPONSORBLOCK_ENABLED_KEY]: true
+      [SPONSORBLOCK_ENABLED_KEY]: false,
+      [SPONSORBLOCK_ACKNOWLEDGED_KEY]: false
     });
 
     queue = Array.isArray(stored[QUEUE_KEY]) ? stored[QUEUE_KEY].map(normalizeQueueItem) : [];
     panelOpen = stored[PANEL_KEY] !== false;
     activeTab = stored[ACTIVE_TAB_KEY] === "watch-later" ? "watch-later" : "queue";
     playbackSpeed = clampPlaybackSpeed(stored[PLAYBACK_SPEED_KEY]);
-    sponsorBlockEnabled = stored[SPONSORBLOCK_ENABLED_KEY] !== false;
+    sponsorBlockEnabled = stored[SPONSORBLOCK_ENABLED_KEY] === true;
+    sponsorBlockAcknowledged = stored[SPONSORBLOCK_ACKNOWLEDGED_KEY] === true;
 
     mount();
     render();
