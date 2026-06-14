@@ -8,7 +8,7 @@ An Electron desktop app and browser extension for YouTube that adds a local Up N
 - Adds a fixed side pane with queued videos.
 - Lets you play, remove, clear, and reorder queued videos.
 - Adds a Watch Later tab that reads your YouTube Watch Later playlist when you are signed in.
-- Queues or plays Watch Later in the displayed newest-to-oldest playlist order.
+- Plays Watch Later forward from the selected item in the displayed newest-to-oldest playlist order.
 - Supports `+ Next` to put a video at the front of the queue and `+ Last` to put it at the end.
 - Keeps played videos in the local queue history, greyed out, instead of deleting them.
 - Automatically opens the next queued video when the current one ends.
@@ -38,7 +38,7 @@ Use the mode button next to `SB` to choose what gets skipped:
 - On Shorts pages, use the bottom `Short + Next / + Last` dock if YouTube's overlay gets in the way.
 - On YouTube browse/search/recommendation pages, use the visible `+ Next` or `+ Last` buttons on each thumbnail.
 - If the side pane is open, use the `+ Next` or `+ Last` buttons at the top of the Queue tab.
-- In the Watch Later tab, use `Queue All` or `Play All` to preserve the playlist order from newest to oldest.
+- In the Watch Later tab, `Play` starts from that item and continues to the following Watch Later items in order.
 
 ## Login
 

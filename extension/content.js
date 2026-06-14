@@ -563,50 +563,28 @@
     window.location.href = item.url;
   }
 
-  async function queueVideos(videos, position) {
-    const items = dedupeVideos(videos).slice(0, MAX_QUEUE_SIZE);
-    if (items.length === 0) {
-      showToast("No videos found");
-      return 0;
+  async function playWatchLaterItem(item, index) {
+    if (!item || !item.id) {
+      return;
     }
 
-    const queuedIds = new Set(items.map((item) => item.id));
-    const normalizedItems = items.map((item, index) => ({
-      ...item,
-      uid: makeUid(item.id),
-      played: false,
-      playedAt: 0,
-      addedAt: Date.now() + index
+    const playlistItems = dedupeVideos(watchLaterItems.slice(Math.max(0, index))).slice(0, MAX_QUEUE_SIZE);
+    const queuedIds = new Set(playlistItems.map((entry) => entry.id));
+    const now = Date.now();
+    const nextQueueItems = playlistItems.map((entry, itemIndex) => ({
+      ...entry,
+      uid: makeUid(entry.id),
+      played: itemIndex === 0,
+      playedAt: itemIndex === 0 ? now : 0,
+      addedAt: now + itemIndex
     }));
 
-    queue = queue.filter((item) => !queuedIds.has(item.id));
-    if (position === "next") {
-      queue = normalizedItems.concat(queue).slice(0, MAX_QUEUE_SIZE);
-    } else {
-      queue = queue.concat(normalizedItems).slice(-MAX_QUEUE_SIZE);
-    }
+    queue = nextQueueItems
+      .concat(queue.filter((entry) => !queuedIds.has(entry.id)))
+      .slice(0, MAX_QUEUE_SIZE);
 
     await saveQueue();
-    await setPanelOpen(true);
-    return normalizedItems.length;
-  }
-
-  async function queueWatchLater(position, playNow) {
-    if (watchLaterItems.length === 0) {
-      showToast("No Watch Later videos found");
-      return;
-    }
-
-    const queuedCount = await queueVideos(watchLaterItems, position);
-    if (queuedCount === 0) {
-      return;
-    }
-
-    showToast(`${playNow ? "Playing" : "Queued"} ${queuedCount} Watch Later videos`);
-
-    if (playNow) {
-      await playNext();
-    }
+    window.location.href = item.url;
   }
 
   function createButton(label, className, onClick, title) {
@@ -832,8 +810,6 @@
     const controls = document.createElement("div");
     controls.className = "ytun-controls ytun-watch-controls";
     controls.appendChild(createButton("Refresh", "ytun-control", () => loadWatchLater(true), "Refresh Watch Later"));
-    controls.appendChild(createButton("Queue All", "ytun-control", () => queueWatchLater("last", false), "Queue Watch Later newest to oldest"));
-    controls.appendChild(createButton("Play All", "ytun-control", () => queueWatchLater("next", true), "Play Watch Later newest to oldest"));
     controls.appendChild(createButton("Open List", "ytun-control", () => {
       window.location.href = WATCH_LATER_URL;
     }, "Open YouTube Watch Later"));
@@ -898,12 +874,12 @@
   function renderLibraryItem(item, index) {
     return renderVideoRow(item, index, [
       createButton("Play", "ytun-mini", () => {
-        window.location.href = item.url;
-      }, "Play video"),
+        playWatchLaterItem(item, index);
+      }, "Play from this Watch Later item"),
       createButton("+ Next", "ytun-mini", () => addVideo(item, "next"), "Play next"),
       createButton("+ Last", "ytun-mini", () => addVideo(item, "last"), "Add to end")
     ], () => {
-      window.location.href = item.url;
+      playWatchLaterItem(item, index);
     });
   }
 
