@@ -103,6 +103,7 @@ if command -v gh >/dev/null 2>&1; then
   if gh release view "$TAG" >/dev/null 2>&1; then
     gh release edit "$TAG" \
       --title "$APP_NAME $VERSION" \
+      --target "$(git rev-parse HEAD)" \
       --notes-file "$RELEASE_NOTES" \
       --latest
     gh release upload "$TAG" "$MAC_ZIP" "$EXTENSION_ZIP" --clobber
