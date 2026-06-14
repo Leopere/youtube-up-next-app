@@ -50,6 +50,14 @@
     preview: "preview",
     hook: "hook"
   };
+  const RETRO_TV_MODES = [
+    { id: "mono", label: "Black and white" },
+    { id: "green", label: "Green phosphor" },
+    { id: "red", label: "Red channel" },
+    { id: "amber", label: "Amber CRT" },
+    { id: "tube", label: "Tube TV" }
+  ];
+  const RETRO_TV_CLASS_PREFIX = "ytun-retro-";
   const VALID_RENDERER_SELECTOR = [
     "ytd-rich-item-renderer",
     "ytd-video-renderer",
@@ -93,6 +101,8 @@
   let speedUpButton;
   let sponsorBlockToggle;
   let sponsorBlockModeButton;
+  let retroTvMode = "normal";
+  let retroOverlay;
   let shortsDock;
   let toastTimer;
   let currentMainVideo;
@@ -278,6 +288,84 @@
 
   function sponsorBlockModeConfig(mode) {
     return SPONSORBLOCK_MODES[normalizeSponsorBlockMode(mode)];
+  }
+
+  function retroTvModeConfig(mode) {
+    return RETRO_TV_MODES.find((entry) => entry.id === mode) || { id: "normal", label: "Normal" };
+  }
+
+  function normalizeRetroTvMode(mode) {
+    return RETRO_TV_MODES.some((entry) => entry.id === mode) ? mode : "normal";
+  }
+
+  function retroTvClassNames() {
+    return [
+      "ytun-retro-active",
+      ...RETRO_TV_MODES.map((entry) => `${RETRO_TV_CLASS_PREFIX}${entry.id}`)
+    ];
+  }
+
+  function setRetroTvMode(mode) {
+    const nextMode = normalizeRetroTvMode(mode);
+
+    document.documentElement.classList.remove(...retroTvClassNames());
+    retroTvMode = nextMode;
+
+    if (nextMode !== "normal") {
+      document.documentElement.classList.add("ytun-retro-active", `${RETRO_TV_CLASS_PREFIX}${nextMode}`);
+    }
+
+    showToast(`Retro TV: ${retroTvModeConfig(nextMode).label}`);
+  }
+
+  function randomRetroTvMode() {
+    const activeModeIds = RETRO_TV_MODES.map((entry) => entry.id);
+    const choices = retroTvMode === "normal"
+      ? activeModeIds
+      : ["normal", ...activeModeIds.filter((mode) => mode !== retroTvMode)];
+
+    return choices[Math.floor(Math.random() * choices.length)];
+  }
+
+  function isEditableTarget(target) {
+    if (!target || target === document || target === window) {
+      return false;
+    }
+
+    const element = target.nodeType === Node.ELEMENT_NODE ? target : target.parentElement;
+    if (!element || typeof element.closest !== "function") {
+      return false;
+    }
+
+    if (element.isContentEditable) {
+      return true;
+    }
+
+    const editable = element.closest("input, textarea, select, [contenteditable], [role='textbox'], [role='combobox']");
+    if (!editable) {
+      return false;
+    }
+
+    return editable.getAttribute("contenteditable") !== "false";
+  }
+
+  function handleRetroTvKeydown(event) {
+    if (
+      event.defaultPrevented ||
+      event.repeat ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.shiftKey ||
+      String(event.key).toLowerCase() !== "r" ||
+      isEditableTarget(event.target)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setRetroTvMode(randomRetroTvMode());
   }
 
   function sponsorBlockCacheKey(videoId, mode) {
@@ -807,6 +895,10 @@
 
     speedModulator = createSpeedModulator();
 
+    retroOverlay = document.createElement("div");
+    retroOverlay.className = "ytun-retro-overlay";
+    retroOverlay.setAttribute("aria-hidden", "true");
+
     shortsDock = document.createElement("div");
     shortsDock.className = "ytun-shorts-dock";
 
@@ -830,6 +922,7 @@
     root.appendChild(addCurrentNextButton);
     root.appendChild(addCurrentLastButton);
     root.appendChild(speedModulator);
+    root.appendChild(retroOverlay);
     root.appendChild(shortsDock);
     root.appendChild(panel);
     document.documentElement.appendChild(root);
@@ -1629,6 +1722,7 @@
     mount();
     render();
     scheduleScan();
+    window.addEventListener("keydown", handleRetroTvKeydown, true);
 
     if (activeTab === "watch-later") {
       loadWatchLater();

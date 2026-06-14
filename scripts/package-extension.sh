@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
-ZIP_PATH="$DIST_DIR/YouTube-Up-Next-extension.zip"
+ZIP_PATH="$DIST_DIR/TubeTV-extension.zip"
 
 mkdir -p "$DIST_DIR"
 rm -f "$ZIP_PATH"

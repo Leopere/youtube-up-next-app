@@ -7,9 +7,12 @@ if [ $# -lt 1 ]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_NAME="YouTube Up Next"
+APP_NAME="TubeTV"
+LEGACY_APP_NAME="YouTube Up Next"
 APP_PATH="/Applications/${APP_NAME}.app"
+LEGACY_APP_PATH="/Applications/${LEGACY_APP_NAME}.app"
 APP_PROCESS_PATTERN="$APP_PATH/Contents/MacOS/$APP_NAME"
+LEGACY_APP_PROCESS_PATTERN="$LEGACY_APP_PATH/Contents/MacOS/$LEGACY_APP_NAME"
 message="$*"
 
 cd "$ROOT_DIR"
@@ -22,31 +25,33 @@ case "$PACKAGER_ARCH" in
     PACKAGER_ARCH="x64"
     ;;
 esac
-MAC_ZIP="$ROOT_DIR/release/YouTube-Up-Next-macOS-Electron-${PACKAGER_ARCH}.zip"
-EXTENSION_ZIP="$ROOT_DIR/dist/YouTube-Up-Next-extension.zip"
+MAC_ZIP="$ROOT_DIR/release/TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip"
+EXTENSION_ZIP="$ROOT_DIR/dist/TubeTV-extension.zip"
 RELEASE_NOTES="$(mktemp)"
 trap 'rm -f "$RELEASE_NOTES"' EXIT
 
 stop_running_app() {
   osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+  osascript -e "tell application \"$LEGACY_APP_NAME\" to quit" >/dev/null 2>&1 || true
 
   for _attempt in {1..10}; do
-    if ! pgrep -f "$APP_PROCESS_PATTERN" >/dev/null; then
+    if ! pgrep -f "$APP_PROCESS_PATTERN" >/dev/null && ! pgrep -f "$LEGACY_APP_PROCESS_PATTERN" >/dev/null; then
       return
     fi
     sleep 1
   done
 
   pkill -f "$APP_PROCESS_PATTERN" >/dev/null 2>&1 || true
+  pkill -f "$LEGACY_APP_PROCESS_PATTERN" >/dev/null 2>&1 || true
 
   for _attempt in {1..5}; do
-    if ! pgrep -f "$APP_PROCESS_PATTERN" >/dev/null; then
+    if ! pgrep -f "$APP_PROCESS_PATTERN" >/dev/null && ! pgrep -f "$LEGACY_APP_PROCESS_PATTERN" >/dev/null; then
       return
     fi
     sleep 1
   done
 
-  echo "$APP_NAME is still running and could not be stopped" >&2
+  echo "$APP_NAME or $LEGACY_APP_NAME is still running and could not be stopped" >&2
   exit 1
 }
 
@@ -89,11 +94,11 @@ if [ ! -f "$EXTENSION_ZIP" ]; then
 fi
 
 cat >"$RELEASE_NOTES" <<EOF
-YouTube Up Next $VERSION
+TubeTV $VERSION
 
 Downloads:
-- macOS app: YouTube-Up-Next-macOS-Electron-${PACKAGER_ARCH}.zip
-- Browser extension: YouTube-Up-Next-extension.zip
+- macOS app: TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip
+- Browser extension: TubeTV-extension.zip
 
 Install the macOS app by unzipping the app archive and moving the app to /Applications.
 Install the browser extension manually from the unpacked extension folder.

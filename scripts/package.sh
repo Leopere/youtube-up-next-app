@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="YouTube Up Next"
-APP_BUNDLE_ID="ca.nixc.youtube-up-next"
+APP_NAME="TubeTV"
+APP_BUNDLE_ID="ca.nixc.tubetv"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE_DIR="$ROOT_DIR/release"
 VERSION="$(cd "$ROOT_DIR" && node -p "require('./package.json').version")"
@@ -33,7 +33,7 @@ done
 
 mkdir -p "$RELEASE_DIR"
 rm -rf "$RELEASE_DIR/${APP_NAME}-darwin-${PACKAGER_ARCH}" "$RELEASE_DIR/${APP_NAME}.app"
-rm -f "$RELEASE_DIR/YouTube-Up-Next-macOS-Electron-${PACKAGER_ARCH}.zip"
+rm -f "$RELEASE_DIR/TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip"
 
 (
   cd "$ROOT_DIR"
@@ -62,8 +62,8 @@ ditto "$PACKAGED_APP" "$RELEASE_DIR/${APP_NAME}.app"
 
 (
   cd "$RELEASE_DIR"
-  ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "YouTube-Up-Next-macOS-Electron-${PACKAGER_ARCH}.zip"
+  ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip"
 )
 
 echo "Packaged $RELEASE_DIR/${APP_NAME}.app"
-echo "Packaged $RELEASE_DIR/YouTube-Up-Next-macOS-Electron-${PACKAGER_ARCH}.zip"
+echo "Packaged $RELEASE_DIR/TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip"

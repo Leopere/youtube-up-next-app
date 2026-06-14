@@ -1,6 +1,6 @@
-# YouTube Up Next
+# TubeTV
 
-An Electron desktop app and browser extension for YouTube that adds a local Up Next queue side pane.
+An Electron desktop app and browser extension for YouTube that adds a local Up Next queue side pane, speed controls, SponsorBlock-compatible skipping, and a retro TV display mode.
 
 ## What it does
 
@@ -16,6 +16,7 @@ An Electron desktop app and browser extension for YouTube that adds a local Up N
 - Opens watch pages in Theater mode.
 - Adds a playback speed overlay from `0.10x` to `5.00x` in `0.10x` steps.
 - Adds opt-in SponsorBlock-compatible sponsor skipping with `Sponsor`, `Quiet`, and `Aggro` modes.
+- Press bare `R` outside text fields to switch to a random retro TV filter, including green phosphor, black and white, red, amber, tube TV, and normal.
 
 The queue is local extension storage. It does not create or edit real YouTube playlists.
 
@@ -35,11 +36,11 @@ Use the mode button next to `SB` to choose what gets skipped:
 
 ## Release
 
-- Current version: `0.4.7`
+- Current version: `0.5.0`
 - Last shipped: `2026-06-14`
 - Latest release: https://github.com/Leopere/youtube-up-next-app/releases/latest
-- macOS app zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/YouTube-Up-Next-macOS-Electron-arm64.zip
-- Browser extension zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/YouTube-Up-Next-extension.zip
+- macOS app zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/TubeTV-macOS-Electron-arm64.zip
+- Browser extension zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/TubeTV-extension.zip
 - Ship command: `./ship.sh "<commit message>"`
 - Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, publish/update the GitHub release, install to `/Applications`, and relaunch locally.
 
@@ -57,7 +58,7 @@ The Electron app uses its own local profile:
 
 `~/Library/Application Support/YouTube Up Next`
 
-Sign in to YouTube inside the Electron app. This profile is separate from Chrome, Chromium, and the older Chromium wrapper profile, so existing browser sign-ins are not shared.
+TubeTV intentionally keeps using the older `YouTube Up Next` profile directory so app upgrades keep your YouTube sign-in, local queue, and saved resume state. This profile is separate from Chrome, Chromium, and the legacy Chromium wrapper profile, so existing browser sign-ins are not shared.
 
 Google can reject sign-in inside embedded browsers on some accounts or flows. If that happens, use the browser extension path or the legacy Chromium wrapper.
 
@@ -84,17 +85,17 @@ npm start
 
 ## Install Electron App
 
-Package and install the macOS Electron app to `/Applications/YouTube Up Next.app`:
+Package and install the macOS Electron app to `/Applications/TubeTV.app`:
 
 ```sh
 ./scripts/install.sh
-open "/Applications/YouTube Up Next.app"
+open "/Applications/TubeTV.app"
 ```
 
 Install to another path:
 
 ```sh
-./scripts/install.sh "$HOME/Applications/YouTube Up Next.app"
+./scripts/install.sh "$HOME/Applications/TubeTV.app"
 ```
 
 ## Package Electron App
@@ -142,7 +143,7 @@ Create a distributable extension zip:
 
 The zip is written to:
 
-`dist/YouTube-Up-Next-extension.zip`
+`dist/TubeTV-extension.zip`
 
 Manual extension install still requires unpacking the zip and loading the unpacked folder. Publishing to the Chrome Web Store would be the cleaner public install path.
 
@@ -152,7 +153,7 @@ This repository still includes the older Mac wrapper installer for local fallbac
 
 This path requires Chromium at `/Applications/Chromium.app` and uses a separate browser profile:
 
-`~/Library/Application Support/YouTube Up Next Chromium`
+`~/Library/Application Support/TubeTV Chromium`
 
 Install Chromium if needed:
 
@@ -164,7 +165,7 @@ Install the legacy wrapper:
 
 ```sh
 ./scripts/install-chromium-wrapper.sh
-open "/Applications/YouTube Up Next.app"
+open "/Applications/TubeTV Chromium.app"
 ```
 
 The generated app and zips are build artifacts and are intentionally ignored by git.

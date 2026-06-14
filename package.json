@@ -1,7 +1,7 @@
 {
-  "name": "youtube-up-next-app",
-  "version": "0.4.7",
-  "description": "Electron desktop app for the YouTube Up Next queue extension.",
+  "name": "tubetv",
+  "version": "0.5.0",
+  "description": "Electron desktop app for TubeTV's YouTube queue extension.",
   "main": "src/main.js",
   "scripts": {
     "check": "node --check src/main.js && node --check extension/content.js",

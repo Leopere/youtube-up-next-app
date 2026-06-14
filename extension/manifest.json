@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Up Next Pane",
-  "description": "Adds a local Up Next queue side pane to YouTube.",
-  "version": "0.4.7",
+  "name": "TubeTV",
+  "description": "Adds TubeTV queue, playback speed, retro TV, and SponsorBlock controls to YouTube.",
+  "version": "0.5.0",
   "permissions": ["storage"],
   "host_permissions": [
     "https://www.youtube.com/*",

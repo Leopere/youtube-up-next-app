@@ -11,7 +11,8 @@ const {
   shell
 } = require("electron");
 
-const APP_NAME = "YouTube Up Next";
+const APP_NAME = "TubeTV";
+const USER_DATA_NAME = "YouTube Up Next";
 const START_URL = "https://www.youtube.com/";
 const WINDOW_WIDTH = 1600;
 const WINDOW_HEIGHT = 900;
@@ -23,7 +24,7 @@ const PLAYBACK_RESUME_END_PADDING = 10;
 const PLAYBACK_CAPTURE_TIMEOUT_MS = 900;
 
 app.setName(APP_NAME);
-app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
+app.setPath("userData", path.join(app.getPath("appData"), USER_DATA_NAME));
 
 let mainWindow;
 let pendingOpenUrl;
@@ -286,7 +287,7 @@ function openAppUrl(url) {
   return true;
 }
 
-async function loadUpNextExtension() {
+async function loadTubeTvExtension() {
   const targetSession = session.defaultSession;
   const targetExtensionPath = extensionPath();
 
@@ -571,18 +572,18 @@ if (!app.requestSingleInstanceLock()) {
 
     let extensionError;
     try {
-      await loadUpNextExtension();
+      await loadTubeTvExtension();
     } catch (error) {
       extensionError = error;
-      console.error("Could not load the YouTube Up Next extension:", error);
+      console.error("Could not load the TubeTV extension:", error);
     }
 
     createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
 
     if (extensionError) {
       dialog.showErrorBox(
-        "YouTube Up Next extension did not load",
-        `The app opened YouTube, but the Up Next extension failed to load.\n\n${extensionError.message || extensionError}`
+        "TubeTV extension did not load",
+        `The app opened YouTube, but the TubeTV extension failed to load.\n\n${extensionError.message || extensionError}`
       );
     }
 

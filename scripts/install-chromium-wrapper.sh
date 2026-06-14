@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="YouTube Up Next"
-APP_BUNDLE_ID="ca.nixc.youtube-up-next"
+APP_NAME="TubeTV Chromium"
+APP_BUNDLE_ID="ca.nixc.tubetv.chromium-wrapper"
 APP_VERSION="0.2.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,7 +26,7 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 TMP_APP="$TMP_DIR/${APP_NAME}.app"
 
-osacompile -o "$TMP_APP" "$ROOT_DIR/scripts/launch-youtube-up-next.applescript"
+osacompile -o "$TMP_APP" "$ROOT_DIR/scripts/launch-tubetv-chromium.applescript"
 
 mkdir -p "$TMP_APP/Contents/Resources"
 ditto "$ROOT_DIR/extension" "$TMP_APP/Contents/Resources/extension"

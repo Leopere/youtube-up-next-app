@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="YouTube Up Next"
+APP_NAME="TubeTV"
+LEGACY_APP_NAME="YouTube Up Next"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_PATH="${1:-/Applications/${APP_NAME}.app}"
 PACKAGED_APP="$ROOT_DIR/release/${APP_NAME}.app"
+LEGACY_APP_PATH="/Applications/${LEGACY_APP_NAME}.app"
 
 "$ROOT_DIR/scripts/package.sh"
 
@@ -13,6 +15,9 @@ rm -rf "$APP_PATH"
 ditto "$PACKAGED_APP" "$APP_PATH"
 
 if [[ "$APP_PATH" == /Applications/* ]]; then
+  if [[ "$APP_PATH" == "/Applications/${APP_NAME}.app" && -d "$LEGACY_APP_PATH" ]]; then
+    rm -rf "$LEGACY_APP_PATH"
+  fi
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_PATH" >/dev/null 2>&1 || true
 fi
 

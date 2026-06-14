@@ -21,8 +21,8 @@ const releaseBlock = [
   `- Current version: \`${pkg.version}\``,
   `- Last shipped: \`${shippedAt}\``,
   `- Latest release: ${repoUrl}/releases/latest`,
-  `- macOS app zip: ${repoUrl}/releases/latest/download/YouTube-Up-Next-macOS-Electron-arm64.zip`,
-  `- Browser extension zip: ${repoUrl}/releases/latest/download/YouTube-Up-Next-extension.zip`,
+  `- macOS app zip: ${repoUrl}/releases/latest/download/TubeTV-macOS-Electron-arm64.zip`,
+  `- Browser extension zip: ${repoUrl}/releases/latest/download/TubeTV-extension.zip`,
   "- Ship command: `./ship.sh \"<commit message>\"`",
   "- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, publish/update the GitHub release, install to `/Applications`, and relaunch locally.",
   ""
