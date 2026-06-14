@@ -563,6 +563,52 @@
     window.location.href = item.url;
   }
 
+  async function queueVideos(videos, position) {
+    const items = dedupeVideos(videos).slice(0, MAX_QUEUE_SIZE);
+    if (items.length === 0) {
+      showToast("No videos found");
+      return 0;
+    }
+
+    const queuedIds = new Set(items.map((item) => item.id));
+    const normalizedItems = items.map((item, index) => ({
+      ...item,
+      uid: makeUid(item.id),
+      played: false,
+      playedAt: 0,
+      addedAt: Date.now() + index
+    }));
+
+    queue = queue.filter((item) => !queuedIds.has(item.id));
+    if (position === "next") {
+      queue = normalizedItems.concat(queue).slice(0, MAX_QUEUE_SIZE);
+    } else {
+      queue = queue.concat(normalizedItems).slice(-MAX_QUEUE_SIZE);
+    }
+
+    await saveQueue();
+    await setPanelOpen(true);
+    return normalizedItems.length;
+  }
+
+  async function queueWatchLater(position, playNow) {
+    if (watchLaterItems.length === 0) {
+      showToast("No Watch Later videos found");
+      return;
+    }
+
+    const queuedCount = await queueVideos(watchLaterItems, position);
+    if (queuedCount === 0) {
+      return;
+    }
+
+    showToast(`${playNow ? "Playing" : "Queued"} ${queuedCount} Watch Later videos`);
+
+    if (playNow) {
+      await playNext();
+    }
+  }
+
   function createButton(label, className, onClick, title) {
     const button = document.createElement("button");
     button.type = "button";
@@ -786,6 +832,8 @@
     const controls = document.createElement("div");
     controls.className = "ytun-controls ytun-watch-controls";
     controls.appendChild(createButton("Refresh", "ytun-control", () => loadWatchLater(true), "Refresh Watch Later"));
+    controls.appendChild(createButton("Queue All", "ytun-control", () => queueWatchLater("last", false), "Queue Watch Later newest to oldest"));
+    controls.appendChild(createButton("Play All", "ytun-control", () => queueWatchLater("next", true), "Play Watch Later newest to oldest"));
     controls.appendChild(createButton("Open List", "ytun-control", () => {
       window.location.href = WATCH_LATER_URL;
     }, "Open YouTube Watch Later"));
@@ -1292,9 +1340,76 @@
   }
 
   function extractPlaylistVideos(data) {
-    const renderers = [];
-    collectPlaylistRenderers(data, renderers);
+    const renderers = extractPrimaryPlaylistRenderers(data);
+    if (renderers.length === 0) {
+      collectPlaylistRenderers(data, renderers);
+    }
+
     return renderers.map(videoFromPlaylistRenderer).filter(Boolean);
+  }
+
+  function extractPrimaryPlaylistRenderers(data) {
+    const containers = [];
+    collectPlaylistContainers(data, containers);
+    containers.sort((a, b) => b.length - a.length);
+    return (containers[0] || []).slice(0, MAX_QUEUE_SIZE);
+  }
+
+  function collectPlaylistContainers(node, containers) {
+    if (!node || containers.length >= 12) {
+      return;
+    }
+
+    if (Array.isArray(node)) {
+      node.forEach((item) => collectPlaylistContainers(item, containers));
+      return;
+    }
+
+    if (typeof node !== "object") {
+      return;
+    }
+
+    const playlistContainer = node.playlistVideoListRenderer || node.playlistVideoListContinuation;
+    if (playlistContainer && Array.isArray(playlistContainer.contents)) {
+      const renderers = playlistRenderersFromContents(playlistContainer.contents);
+      if (renderers.length > 0) {
+        containers.push(renderers);
+      }
+      return;
+    }
+
+    Object.keys(node).forEach((key) => collectPlaylistContainers(node[key], containers));
+  }
+
+  function playlistRenderersFromContents(contents) {
+    const renderers = [];
+    contents.forEach((item) => {
+      if (!item || renderers.length >= MAX_QUEUE_SIZE) {
+        return;
+      }
+
+      if (item.playlistVideoRenderer) {
+        renderers.push(item.playlistVideoRenderer);
+        return;
+      }
+
+      const richItemContent = item.richItemRenderer && item.richItemRenderer.content;
+      if (richItemContent && richItemContent.playlistVideoRenderer) {
+        renderers.push(richItemContent.playlistVideoRenderer);
+        return;
+      }
+
+      const sectionContents = item.itemSectionRenderer && item.itemSectionRenderer.contents;
+      if (Array.isArray(sectionContents)) {
+        playlistRenderersFromContents(sectionContents).forEach((renderer) => {
+          if (renderers.length < MAX_QUEUE_SIZE) {
+            renderers.push(renderer);
+          }
+        });
+      }
+    });
+
+    return renderers;
   }
 
   function collectPlaylistRenderers(node, renderers) {
