@@ -8,6 +8,7 @@
   const PANEL_KEY = "ytUpNextPanelOpen";
   const ACTIVE_TAB_KEY = "ytUpNextActiveTab";
   const PLAYBACK_SPEED_KEY = "ytUpNextPlaybackSpeed";
+  const PLAYBACK_POSITIONS_KEY = "ytUpNextPlaybackPositions";
   const SPONSORBLOCK_ENABLED_KEY = "ytUpNextSponsorBlockEnabled";
   const SPONSORBLOCK_ACKNOWLEDGED_KEY = "ytUpNextSponsorBlockAcknowledged";
   const SPONSORBLOCK_MODE_KEY = "ytUpNextSponsorBlockMode";
@@ -16,6 +17,10 @@
   const SPEED_MIN = 0.1;
   const SPEED_MAX = 5;
   const SPEED_STEP = 0.1;
+  const PLAYBACK_RESUME_MIN_SECONDS = 5;
+  const PLAYBACK_RESUME_END_PADDING = 10;
+  const PLAYBACK_POSITION_SAVE_INTERVAL = 2000;
+  const MAX_PLAYBACK_POSITIONS = 250;
   const SPONSORBLOCK_API_URL = "https://sponsor.ajay.app/api/skipSegments";
   const SPONSORBLOCK_ACTION_TYPES = ["skip"];
   const SPONSORBLOCK_MODES = {
@@ -70,6 +75,7 @@
   let panelOpen = true;
   let activeTab = "queue";
   let playbackSpeed = 1;
+  let playbackPositions = {};
   let sponsorBlockEnabled = false;
   let sponsorBlockAcknowledged = false;
   let sponsorBlockMode = "sponsor";
@@ -90,10 +96,14 @@
   let shortsDock;
   let toastTimer;
   let currentMainVideo;
+  let currentMainVideoId = "";
   let currentMainVideoEndedHandler;
   let currentMainVideoTimeHandler;
+  let currentMainVideoLoadedMetadataHandler;
+  let currentMainVideoPauseHandler;
   let advancing = false;
   let scanTimer;
+  let lastPlaybackPositionSaveAt = 0;
   let sponsorBlockVideoId = "";
   let sponsorBlockVideoKey = "";
   let sponsorBlockSegments = [];
@@ -162,6 +172,104 @@
 
   function getMainVideoElement() {
     return document.querySelector("video.html5-main-video") || document.querySelector("video");
+  }
+
+  function normalizePlaybackPositions(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return {};
+    }
+
+    return Object.entries(value).reduce((result, [videoId, entry]) => {
+      const time = Number(entry && entry.time);
+      const duration = Number(entry && entry.duration);
+      const updatedAt = Number(entry && entry.updatedAt);
+
+      if (videoId && Number.isFinite(time) && time > 0) {
+        result[videoId] = {
+          time,
+          duration: Number.isFinite(duration) ? duration : 0,
+          updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+        };
+      }
+
+      return result;
+    }, {});
+  }
+
+  function prunedPlaybackPositions(positions) {
+    return Object.fromEntries(
+      Object.entries(positions)
+        .sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0))
+        .slice(0, MAX_PLAYBACK_POSITIONS)
+    );
+  }
+
+  async function clearPlaybackPosition(videoId) {
+    if (!videoId || !playbackPositions[videoId]) {
+      return;
+    }
+
+    delete playbackPositions[videoId];
+    await storage.set({ [PLAYBACK_POSITIONS_KEY]: playbackPositions });
+  }
+
+  async function savePlaybackPosition(force) {
+    const videoId = currentMainVideoId || parseVideoId(window.location.href);
+    const video = currentMainVideoId
+      ? (currentMainVideo && currentMainVideo.isConnected ? currentMainVideo : null)
+      : getMainVideoElement();
+
+    if (!video || !videoId || !Number.isFinite(video.currentTime)) {
+      return;
+    }
+
+    const now = Date.now();
+    if (!force && now - lastPlaybackPositionSaveAt < PLAYBACK_POSITION_SAVE_INTERVAL) {
+      return;
+    }
+    lastPlaybackPositionSaveAt = now;
+
+    const duration = Number(video.duration);
+    const hasDuration = Number.isFinite(duration) && duration > 0;
+    const nearEnd = hasDuration && duration - video.currentTime <= PLAYBACK_RESUME_END_PADDING;
+
+    if (video.ended || video.currentTime < PLAYBACK_RESUME_MIN_SECONDS || nearEnd) {
+      await clearPlaybackPosition(videoId);
+      return;
+    }
+
+    playbackPositions = prunedPlaybackPositions({
+      ...playbackPositions,
+      [videoId]: {
+        time: video.currentTime,
+        duration: hasDuration ? duration : 0,
+        updatedAt: now
+      }
+    });
+
+    await storage.set({ [PLAYBACK_POSITIONS_KEY]: playbackPositions });
+  }
+
+  function restorePlaybackPosition(video, videoId) {
+    const entry = videoId && playbackPositions[videoId];
+    if (!video || !entry || !Number.isFinite(entry.time) || entry.time < PLAYBACK_RESUME_MIN_SECONDS) {
+      return;
+    }
+
+    const duration = Number(video.duration);
+    const hasDuration = Number.isFinite(duration) && duration > 0;
+    if (hasDuration && duration - entry.time <= PLAYBACK_RESUME_END_PADDING) {
+      clearPlaybackPosition(videoId);
+      return;
+    }
+
+    const targetTime = hasDuration
+      ? Math.max(0, Math.min(entry.time, duration - 3))
+      : entry.time;
+
+    if (video.currentTime < 3 && Math.abs(video.currentTime - targetTime) > 2) {
+      video.currentTime = targetTime;
+    }
   }
 
   function normalizeSponsorBlockMode(mode) {
@@ -1144,41 +1252,67 @@
     if (currentMainVideo && currentMainVideoTimeHandler) {
       currentMainVideo.removeEventListener("timeupdate", currentMainVideoTimeHandler);
     }
+    if (currentMainVideo && currentMainVideoLoadedMetadataHandler) {
+      currentMainVideo.removeEventListener("loadedmetadata", currentMainVideoLoadedMetadataHandler);
+    }
+    if (currentMainVideo && currentMainVideoPauseHandler) {
+      currentMainVideo.removeEventListener("pause", currentMainVideoPauseHandler);
+    }
 
     currentMainVideo = null;
+    currentMainVideoId = "";
     currentMainVideoEndedHandler = null;
     currentMainVideoTimeHandler = null;
+    currentMainVideoLoadedMetadataHandler = null;
+    currentMainVideoPauseHandler = null;
   }
 
   function watchMainVideo() {
     if (!["/watch", "/shorts"].some((path) => window.location.pathname.startsWith(path))) {
+      savePlaybackPosition(true);
       unwatchMainVideo();
       return;
     }
 
     const mainVideo = getMainVideoElement();
+    const videoId = parseVideoId(window.location.href);
     if (!mainVideo) {
       unwatchMainVideo();
       return;
     }
 
-    if (mainVideo === currentMainVideo) {
+    if (mainVideo === currentMainVideo && videoId === currentMainVideoId) {
       applyPlaybackSpeed();
       return;
     }
 
+    savePlaybackPosition(true);
     unwatchMainVideo();
 
     currentMainVideo = mainVideo;
+    currentMainVideoId = videoId;
     currentMainVideoEndedHandler = () => {
+      clearPlaybackPosition(currentMainVideoId);
       window.setTimeout(() => playNext(), 120);
     };
     currentMainVideoTimeHandler = () => {
       runSponsorBlockSkip();
+      savePlaybackPosition(false);
+    };
+    currentMainVideoLoadedMetadataHandler = () => {
+      restorePlaybackPosition(currentMainVideo, currentMainVideoId);
+    };
+    currentMainVideoPauseHandler = () => {
+      savePlaybackPosition(true);
     };
     applyPlaybackSpeed();
     currentMainVideo.addEventListener("ended", currentMainVideoEndedHandler);
     currentMainVideo.addEventListener("timeupdate", currentMainVideoTimeHandler);
+    currentMainVideo.addEventListener("loadedmetadata", currentMainVideoLoadedMetadataHandler);
+    currentMainVideo.addEventListener("pause", currentMainVideoPauseHandler);
+    if (currentMainVideo.readyState >= 1) {
+      restorePlaybackPosition(currentMainVideo, currentMainVideoId);
+    }
     loadSponsorBlockSegments(true);
   }
 
@@ -1477,6 +1611,7 @@
       [PANEL_KEY]: true,
       [ACTIVE_TAB_KEY]: "queue",
       [PLAYBACK_SPEED_KEY]: 1,
+      [PLAYBACK_POSITIONS_KEY]: {},
       [SPONSORBLOCK_ENABLED_KEY]: false,
       [SPONSORBLOCK_ACKNOWLEDGED_KEY]: false,
       [SPONSORBLOCK_MODE_KEY]: "sponsor"
@@ -1486,6 +1621,7 @@
     panelOpen = stored[PANEL_KEY] !== false;
     activeTab = stored[ACTIVE_TAB_KEY] === "watch-later" ? "watch-later" : "queue";
     playbackSpeed = clampPlaybackSpeed(stored[PLAYBACK_SPEED_KEY]);
+    playbackPositions = normalizePlaybackPositions(stored[PLAYBACK_POSITIONS_KEY]);
     sponsorBlockEnabled = stored[SPONSORBLOCK_ENABLED_KEY] === true;
     sponsorBlockAcknowledged = stored[SPONSORBLOCK_ACKNOWLEDGED_KEY] === true;
     sponsorBlockMode = normalizeSponsorBlockMode(stored[SPONSORBLOCK_MODE_KEY]);
@@ -1509,6 +1645,12 @@
       scheduleScan();
     });
     window.addEventListener("popstate", scheduleScan);
+    window.addEventListener("pagehide", () => {
+      savePlaybackPosition(true);
+    });
+    window.addEventListener("beforeunload", () => {
+      savePlaybackPosition(true);
+    });
     window.setInterval(scheduleScan, 2500);
   }
 

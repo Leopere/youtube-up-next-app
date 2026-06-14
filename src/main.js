@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const path = require("node:path");
 
 const {
@@ -16,6 +17,7 @@ const WINDOW_WIDTH = 1600;
 const WINDOW_HEIGHT = 900;
 const WINDOW_X = 80;
 const WINDOW_Y = 60;
+const APP_STATE_FILE = "app-state.json";
 
 app.setName(APP_NAME);
 app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
@@ -54,6 +56,57 @@ function isAppUrl(urlValue) {
   }
 }
 
+function isYouTubeUrl(urlValue) {
+  try {
+    const url = new URL(urlValue);
+    const host = url.hostname.toLowerCase();
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      (host === "youtube.com" || host.endsWith(".youtube.com"))
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function appStatePath() {
+  return path.join(app.getPath("userData"), APP_STATE_FILE);
+}
+
+function readAppState() {
+  try {
+    return JSON.parse(fs.readFileSync(appStatePath(), "utf8"));
+  } catch (_error) {
+    return {};
+  }
+}
+
+function writeAppState(values) {
+  try {
+    fs.mkdirSync(app.getPath("userData"), { recursive: true });
+    fs.writeFileSync(appStatePath(), JSON.stringify(values, null, 2));
+  } catch (error) {
+    console.error("Could not save app state:", error);
+  }
+}
+
+function lastUrlFromState() {
+  const state = readAppState();
+  return isYouTubeUrl(state.lastUrl) ? state.lastUrl : "";
+}
+
+function saveLastUrl(url) {
+  if (!isYouTubeUrl(url)) {
+    return;
+  }
+
+  writeAppState({
+    ...readAppState(),
+    lastUrl: url,
+    lastUrlSavedAt: Date.now()
+  });
+}
+
 function findLaunchUrl(argv) {
   return argv.find((arg) => isHttpUrl(arg) && isAppUrl(arg)) || "";
 }
@@ -71,6 +124,8 @@ function chromeCompatibleUserAgent() {
 }
 
 function loadAppUrl(targetWindow, url) {
+  const targetUrl = url || START_URL;
+  saveLastUrl(targetUrl);
   targetWindow.loadURL(url || START_URL, {
     userAgent: chromeCompatibleUserAgent()
   });
@@ -186,7 +241,7 @@ function createMenu(mainWindow) {
           label: "YouTube Home",
           accelerator: isMac ? "Command+Shift+H" : "Control+H",
           click() {
-            mainWindow.loadURL(START_URL);
+            loadAppUrl(mainWindow, START_URL);
           }
         }
       ]
@@ -294,7 +349,7 @@ function createWindow(startUrl) {
   mainWindow.webContents.setUserAgent(userAgent);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isAppUrl(url)) {
-      mainWindow.loadURL(url, { userAgent });
+      loadAppUrl(mainWindow, url);
     } else if (isHttpUrl(url)) {
       shell.openExternal(url);
     }
@@ -311,6 +366,15 @@ function createWindow(startUrl) {
     if (isHttpUrl(url)) {
       shell.openExternal(url);
     }
+  });
+  mainWindow.webContents.on("did-navigate", (_event, url) => {
+    saveLastUrl(url);
+  });
+  mainWindow.webContents.on("did-navigate-in-page", (_event, url) => {
+    saveLastUrl(url);
+  });
+  mainWindow.on("close", () => {
+    saveLastUrl(mainWindow.webContents.getURL());
   });
 
   loadAppUrl(mainWindow, startUrl);
@@ -361,7 +425,7 @@ if (!app.requestSingleInstanceLock()) {
       console.error("Could not load the YouTube Up Next extension:", error);
     }
 
-    createWindow(pendingOpenUrl || START_URL);
+    createWindow(pendingOpenUrl || lastUrlFromState() || START_URL);
 
     if (extensionError) {
       dialog.showErrorBox(
@@ -372,7 +436,7 @@ if (!app.requestSingleInstanceLock()) {
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow(START_URL);
+        createWindow(pendingOpenUrl || lastUrlFromState() || START_URL);
       } else if (mainWindow) {
         mainWindow.show();
       }
