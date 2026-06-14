@@ -36,7 +36,7 @@ html.ytun-retro-tube body {
   overflow: hidden;
   pointer-events: none;
   position: fixed;
-  z-index: 2147482999;
+  z-index: 2147482000;
 }
 
 html.ytun-retro-active .ytun-retro-overlay {

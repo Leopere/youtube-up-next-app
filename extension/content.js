@@ -922,9 +922,9 @@
     root.appendChild(addCurrentNextButton);
     root.appendChild(addCurrentLastButton);
     root.appendChild(speedModulator);
-    root.appendChild(retroOverlay);
     root.appendChild(shortsDock);
     root.appendChild(panel);
+    document.documentElement.appendChild(retroOverlay);
     document.documentElement.appendChild(root);
   }
 
