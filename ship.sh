@@ -9,6 +9,7 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="YouTube Up Next"
 APP_PATH="/Applications/${APP_NAME}.app"
+APP_PROCESS_PATTERN="$APP_PATH/Contents/MacOS/$APP_NAME"
 message="$*"
 
 cd "$ROOT_DIR"
@@ -25,6 +26,29 @@ MAC_ZIP="$ROOT_DIR/release/YouTube-Up-Next-macOS-Electron-${PACKAGER_ARCH}.zip"
 EXTENSION_ZIP="$ROOT_DIR/dist/YouTube-Up-Next-extension.zip"
 RELEASE_NOTES="$(mktemp)"
 trap 'rm -f "$RELEASE_NOTES"' EXIT
+
+stop_running_app() {
+  osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
+
+  for _attempt in {1..10}; do
+    if ! pgrep -f "$APP_PROCESS_PATTERN" >/dev/null; then
+      return
+    fi
+    sleep 1
+  done
+
+  pkill -f "$APP_PROCESS_PATTERN" >/dev/null 2>&1 || true
+
+  for _attempt in {1..5}; do
+    if ! pgrep -f "$APP_PROCESS_PATTERN" >/dev/null; then
+      return
+    fi
+    sleep 1
+  done
+
+  echo "$APP_NAME is still running and could not be stopped" >&2
+  exit 1
+}
 
 npm run verify
 
@@ -47,8 +71,10 @@ else
   git push
 fi
 
-osascript -e "tell application \"$APP_NAME\" to quit" >/dev/null 2>&1 || true
-sleep 2
+git tag -f "$TAG" "$(git rev-parse HEAD)"
+git push --force origin "$TAG"
+
+stop_running_app
 
 "$ROOT_DIR/scripts/install.sh" "$APP_PATH"
 
@@ -101,9 +127,10 @@ if [ "$INSTALLED_VERSION" != "$VERSION" ]; then
   exit 1
 fi
 
-if ! pgrep -f "$APP_PATH/Contents/MacOS/$APP_NAME" >/dev/null; then
+RUNNING_PID="$(pgrep -f "$APP_PROCESS_PATTERN" | head -n 1 || true)"
+if [ -z "$RUNNING_PID" ]; then
   echo "$APP_NAME did not relaunch from $APP_PATH" >&2
   exit 1
 fi
 
-echo "Shipped, installed, and relaunched $APP_NAME $VERSION"
+echo "Shipped, installed, and relaunched $APP_NAME $VERSION as PID $RUNNING_PID"
