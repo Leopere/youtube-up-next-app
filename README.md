@@ -39,10 +39,6 @@ Use the mode button next to `SB` to choose what gets skipped:
 - Last shipped: `2026-06-14`
 - Ship command: `./ship.sh "<commit message>"`
 - Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, install to `/Applications`, and relaunch locally.
-- Current version: `0.4.7`
-- Last shipped: `2026-06-14`
-- Ship command: `./ship.sh "<commit message>"`
-- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, install to `/Applications`, and relaunch locally.
 
 ## Where to Add Videos
 

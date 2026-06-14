@@ -25,8 +25,10 @@ const releaseBlock = [
 ].join("\n");
 
 let nextReadme;
-if (/^## Release\n[\s\S]*?(?=\n## |$)/m.test(readme)) {
-  nextReadme = readme.replace(/^## Release\n[\s\S]*?(?=\n## |$)/m, releaseBlock.trimEnd());
+const releaseSectionPattern = /(^|\n)## Release\n[\s\S]*?(?=\n## |$)/;
+
+if (releaseSectionPattern.test(readme)) {
+  nextReadme = readme.replace(releaseSectionPattern, `$1${releaseBlock}`);
 } else {
   nextReadme = readme.replace(/\n## Where to Add Videos\n/, `\n${releaseBlock}\n## Where to Add Videos\n`);
 }
