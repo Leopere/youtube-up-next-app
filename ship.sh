@@ -26,7 +26,6 @@ case "$PACKAGER_ARCH" in
     ;;
 esac
 MAC_ZIP="$ROOT_DIR/release/TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip"
-EXTENSION_ZIP="$ROOT_DIR/dist/TubeTV-extension.zip"
 RELEASE_NOTES="$(mktemp)"
 trap 'rm -f "$RELEASE_NOTES"' EXIT
 
@@ -88,20 +87,13 @@ if [ ! -f "$MAC_ZIP" ]; then
   exit 1
 fi
 
-if [ ! -f "$EXTENSION_ZIP" ]; then
-  echo "Missing extension release zip: $EXTENSION_ZIP" >&2
-  exit 1
-fi
-
 cat >"$RELEASE_NOTES" <<EOF
 TubeTV $VERSION
 
 Downloads:
 - macOS app: TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip
-- Browser extension: TubeTV-extension.zip
 
 Install the macOS app by unzipping the app archive and moving the app to /Applications.
-Install the browser extension manually from the unpacked extension folder.
 EOF
 
 if command -v gh >/dev/null 2>&1; then
@@ -111,9 +103,9 @@ if command -v gh >/dev/null 2>&1; then
       --target "$(git rev-parse HEAD)" \
       --notes-file "$RELEASE_NOTES" \
       --latest
-    gh release upload "$TAG" "$MAC_ZIP" "$EXTENSION_ZIP" --clobber
+    gh release upload "$TAG" "$MAC_ZIP" --clobber
   else
-    gh release create "$TAG" "$MAC_ZIP" "$EXTENSION_ZIP" \
+    gh release create "$TAG" "$MAC_ZIP" \
       --target "$(git rev-parse HEAD)" \
       --title "$APP_NAME $VERSION" \
       --notes-file "$RELEASE_NOTES" \

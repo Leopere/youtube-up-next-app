@@ -288,16 +288,7 @@ function openAppUrl(url) {
 }
 
 async function loadTubeTvExtension() {
-  const targetSession = session.defaultSession;
-  const targetExtensionPath = extensionPath();
-
-  if (targetSession.extensions && typeof targetSession.extensions.loadExtension === "function") {
-    return targetSession.extensions.loadExtension(targetExtensionPath, {
-      allowFileAccess: false
-    });
-  }
-
-  return targetSession.loadExtension(targetExtensionPath, {
+  return session.defaultSession.extensions.loadExtension(extensionPath(), {
     allowFileAccess: false
   });
 }
@@ -575,15 +566,15 @@ if (!app.requestSingleInstanceLock()) {
       await loadTubeTvExtension();
     } catch (error) {
       extensionError = error;
-      console.error("Could not load the TubeTV extension:", error);
+      console.error("Could not load the TubeTV YouTube UI:", error);
     }
 
     createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
 
     if (extensionError) {
       dialog.showErrorBox(
-        "TubeTV extension did not load",
-        `The app opened YouTube, but the TubeTV extension failed to load.\n\n${extensionError.message || extensionError}`
+        "TubeTV YouTube UI did not load",
+        `The app opened YouTube, but the bundled TubeTV UI failed to load.\n\n${extensionError.message || extensionError}`
       );
     }
 

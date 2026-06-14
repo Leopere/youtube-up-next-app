@@ -1,6 +1,6 @@
 # TubeTV
 
-An Electron desktop app and browser extension for YouTube that adds a local Up Next queue side pane, speed controls, SponsorBlock-compatible skipping, and a retro TV display mode.
+An Electron desktop app for YouTube that adds a local Up Next queue side pane, speed controls, SponsorBlock-compatible skipping, and a retro TV display mode.
 
 ## What it does
 
@@ -24,7 +24,7 @@ Played state is also stored locally. The queue count is shown as `unplayed/total
 
 Playback speed is stored locally and reapplied as YouTube navigates between videos.
 
-SponsorBlock support uses the public SponsorBlock API to skip submitted segments. It does not bundle the full SponsorBlock browser extension, submit segments, or vote on segments. It is off by default. Click `SB` in the speed overlay to enable it after acknowledging that this is meant to reduce interruptions during continuous playback and that you should support creators directly when you can.
+SponsorBlock support uses the public SponsorBlock API to skip submitted segments. It does not bundle the full SponsorBlock extension, submit segments, or vote on segments. It is off by default. Click `SB` in the speed overlay to enable it after acknowledging that this is meant to reduce interruptions during continuous playback and that you should support creators directly when you can.
 
 When SponsorBlock is on, the `SB` button is red. When a segment is skipped, the app shows a toast such as `Skipped sponsor` or `Skipped intro`.
 
@@ -36,13 +36,12 @@ Use the mode button next to `SB` to choose what gets skipped:
 
 ## Release
 
-- Current version: `0.5.0`
+- Current version: `0.5.1`
 - Last shipped: `2026-06-14`
 - Latest release: https://github.com/Leopere/youtube-up-next-app/releases/latest
 - macOS app zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/TubeTV-macOS-Electron-arm64.zip
-- Browser extension zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/TubeTV-extension.zip
 - Ship command: `./ship.sh "<commit message>"`
-- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, publish/update the GitHub release, install to `/Applications`, and relaunch locally.
+- Ship contract: sync this README, run checks, rebuild the macOS release, commit/push source changes, publish/update the GitHub release, install to `/Applications`, and relaunch locally.
 
 ## Where to Add Videos
 
@@ -58,16 +57,14 @@ The Electron app uses its own local profile:
 
 `~/Library/Application Support/YouTube Up Next`
 
-TubeTV intentionally keeps using the older `YouTube Up Next` profile directory so app upgrades keep your YouTube sign-in, local queue, and saved resume state. This profile is separate from Chrome, Chromium, and the legacy Chromium wrapper profile, so existing browser sign-ins are not shared.
+TubeTV intentionally keeps using the older `YouTube Up Next` profile directory so app upgrades keep your YouTube sign-in, local queue, and saved resume state. This profile is separate from Chrome and your other browsers, so existing browser sign-ins are not shared.
 
-Google can reject sign-in inside embedded browsers on some accounts or flows. If that happens, use the browser extension path or the legacy Chromium wrapper.
+Google can reject sign-in inside embedded browsers on some accounts or flows. TubeTV ships only the Electron app.
 
 ## Requirements
 
 - Node.js and npm for local Electron development and packaging
 - macOS for the packaged desktop app scripts
-- Chrome, Edge, Brave, or Chromium for the optional browser extension install
-- Developer mode enabled for manual extension install
 
 ## Run Electron App
 
@@ -120,52 +117,6 @@ Open it with:
 
 ```sh
 ./scripts/open-youtube-music.sh
-```
-
-## Install Extension
-
-1. Download or clone this repository.
-2. Open `chrome://extensions` in Chrome, Edge, Brave, or Chromium.
-3. Enable `Developer mode`.
-4. Click `Load unpacked`.
-5. Select the `extension/` folder from this repository.
-6. Open YouTube in that browser.
-
-For an app-like window, create a browser app/shortcut for YouTube after loading the extension. The extension will still run in that YouTube app window because it is installed in the browser profile.
-
-## Package Extension
-
-Create a distributable extension zip:
-
-```sh
-./scripts/package-extension.sh
-```
-
-The zip is written to:
-
-`dist/TubeTV-extension.zip`
-
-Manual extension install still requires unpacking the zip and loading the unpacked folder. Publishing to the Chrome Web Store would be the cleaner public install path.
-
-## Legacy Chromium Wrapper
-
-This repository still includes the older Mac wrapper installer for local fallback use. It launches YouTube with the extension preloaded in Chromium and opens the window at `1600x900` from position `80,60`.
-
-This path requires Chromium at `/Applications/Chromium.app` and uses a separate browser profile:
-
-`~/Library/Application Support/TubeTV Chromium`
-
-Install Chromium if needed:
-
-```sh
-brew install --cask chromium
-```
-
-Install the legacy wrapper:
-
-```sh
-./scripts/install-chromium-wrapper.sh
-open "/Applications/TubeTV Chromium.app"
 ```
 
 The generated app and zips are build artifacts and are intentionally ignored by git.

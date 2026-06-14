@@ -1,18 +1,16 @@
 {
   "name": "tubetv",
-  "version": "0.5.0",
-  "description": "Electron desktop app for TubeTV's YouTube queue extension.",
+  "version": "0.5.1",
+  "description": "Electron desktop app for TubeTV's bundled YouTube queue UI.",
   "main": "src/main.js",
   "scripts": {
     "check": "node --check src/main.js && node --check extension/content.js",
     "start": "electron .",
     "sync:readme": "node scripts/sync-readme-release.js",
-    "verify": "npm run sync:readme && npm run check && npm run package:extension",
+    "verify": "npm run sync:readme && npm run check",
     "package": "./scripts/package.sh",
     "package:mac": "./scripts/package.sh",
-    "install:mac": "./scripts/install.sh",
-    "install:chromium-wrapper": "./scripts/install-chromium-wrapper.sh",
-    "package:extension": "./scripts/package-extension.sh"
+    "install:mac": "./scripts/install.sh"
   },
   "private": true,
   "license": "MIT",
