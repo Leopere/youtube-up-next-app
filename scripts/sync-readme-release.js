@@ -4,6 +4,7 @@ const path = require("node:path");
 const rootDir = path.join(__dirname, "..");
 const readmePath = path.join(rootDir, "README.md");
 const packagePath = path.join(rootDir, "package.json");
+const repoUrl = "https://github.com/Leopere/youtube-up-next-app";
 
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const readme = fs.readFileSync(readmePath, "utf8");
@@ -19,8 +20,11 @@ const releaseBlock = [
   "",
   `- Current version: \`${pkg.version}\``,
   `- Last shipped: \`${shippedAt}\``,
+  `- Latest release: ${repoUrl}/releases/latest`,
+  `- macOS app zip: ${repoUrl}/releases/latest/download/YouTube-Up-Next-macOS-Electron-arm64.zip`,
+  `- Browser extension zip: ${repoUrl}/releases/latest/download/YouTube-Up-Next-extension.zip`,
   "- Ship command: `./ship.sh \"<commit message>\"`",
-  "- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, install to `/Applications`, and relaunch locally.",
+  "- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, publish/update the GitHub release, install to `/Applications`, and relaunch locally.",
   ""
 ].join("\n");
 

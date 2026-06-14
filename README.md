@@ -37,8 +37,11 @@ Use the mode button next to `SB` to choose what gets skipped:
 
 - Current version: `0.4.7`
 - Last shipped: `2026-06-14`
+- Latest release: https://github.com/Leopere/youtube-up-next-app/releases/latest
+- macOS app zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/YouTube-Up-Next-macOS-Electron-arm64.zip
+- Browser extension zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/YouTube-Up-Next-extension.zip
 - Ship command: `./ship.sh "<commit message>"`
-- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, install to `/Applications`, and relaunch locally.
+- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, publish/update the GitHub release, install to `/Applications`, and relaunch locally.
 
 ## Where to Add Videos
 
