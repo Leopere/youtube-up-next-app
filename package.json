@@ -4,7 +4,10 @@
   "description": "Electron desktop app for the YouTube Up Next queue extension.",
   "main": "src/main.js",
   "scripts": {
+    "check": "node --check src/main.js && node --check extension/content.js",
     "start": "electron .",
+    "sync:readme": "node scripts/sync-readme-release.js",
+    "verify": "npm run sync:readme && npm run check && npm run package:extension",
     "package": "./scripts/package.sh",
     "package:mac": "./scripts/package.sh",
     "install:mac": "./scripts/install.sh",

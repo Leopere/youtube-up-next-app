@@ -1,0 +1,36 @@
+const fs = require("node:fs");
+const path = require("node:path");
+
+const rootDir = path.join(__dirname, "..");
+const readmePath = path.join(rootDir, "README.md");
+const packagePath = path.join(rootDir, "package.json");
+
+const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+const readme = fs.readFileSync(readmePath, "utf8");
+const shippedAt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Toronto",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit"
+}).format(new Date());
+
+const releaseBlock = [
+  "## Release",
+  "",
+  `- Current version: \`${pkg.version}\``,
+  `- Last shipped: \`${shippedAt}\``,
+  "- Ship command: `./ship.sh \"<commit message>\"`",
+  "- Ship contract: sync this README, run checks, build the extension zip, rebuild the macOS release, commit/push source changes, install to `/Applications`, and relaunch locally.",
+  ""
+].join("\n");
+
+let nextReadme;
+if (/^## Release\n[\s\S]*?(?=\n## |$)/m.test(readme)) {
+  nextReadme = readme.replace(/^## Release\n[\s\S]*?(?=\n## |$)/m, releaseBlock.trimEnd());
+} else {
+  nextReadme = readme.replace(/\n## Where to Add Videos\n/, `\n${releaseBlock}\n## Where to Add Videos\n`);
+}
+
+if (nextReadme !== readme) {
+  fs.writeFileSync(readmePath, nextReadme);
+}
