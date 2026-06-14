@@ -18,6 +18,9 @@ const WINDOW_HEIGHT = 900;
 const WINDOW_X = 80;
 const WINDOW_Y = 60;
 const APP_STATE_FILE = "app-state.json";
+const PLAYBACK_RESUME_MIN_SECONDS = 5;
+const PLAYBACK_RESUME_END_PADDING = 10;
+const PLAYBACK_CAPTURE_TIMEOUT_MS = 900;
 
 app.setName(APP_NAME);
 app.setPath("userData", path.join(app.getPath("appData"), APP_NAME));
@@ -69,6 +72,24 @@ function isYouTubeUrl(urlValue) {
   }
 }
 
+function parseYouTubeVideoId(urlValue) {
+  try {
+    const url = new URL(urlValue);
+    if (!isYouTubeUrl(url.href)) {
+      return "";
+    }
+
+    if (url.pathname === "/watch") {
+      return url.searchParams.get("v") || "";
+    }
+
+    const shortsMatch = url.pathname.match(/^\/shorts\/([^/?#]+)/);
+    return shortsMatch ? shortsMatch[1] : "";
+  } catch (_error) {
+    return "";
+  }
+}
+
 function appStatePath() {
   return path.join(app.getPath("userData"), APP_STATE_FILE);
 }
@@ -90,9 +111,42 @@ function writeAppState(values) {
   }
 }
 
-function lastUrlFromState() {
+function resumeUrlFromState() {
   const state = readAppState();
-  return isYouTubeUrl(state.lastUrl) ? state.lastUrl : "";
+  const lastUrl = isYouTubeUrl(state.lastUrl) ? state.lastUrl : "";
+  if (!lastUrl) {
+    return "";
+  }
+
+  const playback = state.lastPlayback;
+  const videoId = parseYouTubeVideoId(lastUrl);
+  const time = Number(playback && playback.time);
+  const duration = Number(playback && playback.duration);
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const nearEnd = hasDuration && duration - time <= PLAYBACK_RESUME_END_PADDING;
+
+  if (
+    !videoId ||
+    !playback ||
+    playback.videoId !== videoId ||
+    !Number.isFinite(time) ||
+    time < PLAYBACK_RESUME_MIN_SECONDS ||
+    nearEnd
+  ) {
+    return lastUrl;
+  }
+
+  try {
+    const url = new URL(lastUrl);
+    if (url.pathname === "/watch") {
+      url.searchParams.set("t", `${Math.max(0, Math.floor(time))}s`);
+      return url.toString();
+    }
+  } catch (_error) {
+    return lastUrl;
+  }
+
+  return lastUrl;
 }
 
 function saveLastUrl(url) {
@@ -105,6 +159,92 @@ function saveLastUrl(url) {
     lastUrl: url,
     lastUrlSavedAt: Date.now()
   });
+}
+
+function savePlaybackSnapshot(snapshot) {
+  if (!snapshot || !isYouTubeUrl(snapshot.url)) {
+    return;
+  }
+
+  const videoId = snapshot.videoId || parseYouTubeVideoId(snapshot.url);
+  const time = Number(snapshot.currentTime);
+  const duration = Number(snapshot.duration);
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  const nearEnd = hasDuration && duration - time <= PLAYBACK_RESUME_END_PADDING;
+  const state = {
+    ...readAppState(),
+    lastUrl: snapshot.url,
+    lastUrlSavedAt: Date.now()
+  };
+
+  if (
+    videoId &&
+    Number.isFinite(time) &&
+    time >= PLAYBACK_RESUME_MIN_SECONDS &&
+    !snapshot.ended &&
+    !nearEnd
+  ) {
+    state.lastPlayback = {
+      videoId,
+      time,
+      duration: hasDuration ? duration : 0,
+      updatedAt: Date.now()
+    };
+  } else if (state.lastPlayback && state.lastPlayback.videoId === videoId) {
+    delete state.lastPlayback;
+  }
+
+  writeAppState(state);
+}
+
+function withTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    })
+  ]);
+}
+
+async function capturePlaybackState(targetWindow) {
+  if (!targetWindow || targetWindow.isDestroyed() || targetWindow.webContents.isDestroyed()) {
+    return;
+  }
+
+  try {
+    const snapshot = await withTimeout(targetWindow.webContents.executeJavaScript(`
+      (() => {
+        const parseVideoId = (urlValue) => {
+          try {
+            const url = new URL(urlValue, window.location.origin);
+            if (url.pathname === "/watch") {
+              return url.searchParams.get("v") || "";
+            }
+            const shortsMatch = url.pathname.match(/^\\/shorts\\/([^/?#]+)/);
+            return shortsMatch ? shortsMatch[1] : "";
+          } catch (_error) {
+            return "";
+          }
+        };
+        const video = document.querySelector("video.html5-main-video") || document.querySelector("video");
+        return {
+          url: window.location.href,
+          videoId: parseVideoId(window.location.href),
+          currentTime: video ? video.currentTime : 0,
+          duration: video ? video.duration : 0,
+          ended: video ? video.ended : false
+        };
+      })();
+    `, true), PLAYBACK_CAPTURE_TIMEOUT_MS);
+
+    if (snapshot) {
+      savePlaybackSnapshot(snapshot);
+    } else {
+      saveLastUrl(targetWindow.webContents.getURL());
+    }
+  } catch (_error) {
+    saveLastUrl(targetWindow.webContents.getURL());
+  }
 }
 
 function findLaunchUrl(argv) {
@@ -329,6 +469,7 @@ function configureSession() {
 
 function createWindow(startUrl) {
   const userAgent = chromeCompatibleUserAgent();
+  let capturedBeforeClose = false;
   mainWindow = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
@@ -373,8 +514,19 @@ function createWindow(startUrl) {
   mainWindow.webContents.on("did-navigate-in-page", (_event, url) => {
     saveLastUrl(url);
   });
-  mainWindow.on("close", () => {
-    saveLastUrl(mainWindow.webContents.getURL());
+  mainWindow.on("close", (event) => {
+    if (capturedBeforeClose) {
+      saveLastUrl(mainWindow.webContents.getURL());
+      return;
+    }
+
+    event.preventDefault();
+    capturePlaybackState(mainWindow).finally(() => {
+      capturedBeforeClose = true;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.close();
+      }
+    });
   });
 
   loadAppUrl(mainWindow, startUrl);
@@ -425,7 +577,7 @@ if (!app.requestSingleInstanceLock()) {
       console.error("Could not load the YouTube Up Next extension:", error);
     }
 
-    createWindow(pendingOpenUrl || lastUrlFromState() || START_URL);
+    createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
 
     if (extensionError) {
       dialog.showErrorBox(
@@ -436,7 +588,7 @@ if (!app.requestSingleInstanceLock()) {
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow(pendingOpenUrl || lastUrlFromState() || START_URL);
+        createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
       } else if (mainWindow) {
         mainWindow.show();
       }

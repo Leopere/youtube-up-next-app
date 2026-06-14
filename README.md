@@ -12,7 +12,7 @@ An Electron desktop app and browser extension for YouTube that adds a local Up N
 - Supports `+ Next` to put a video at the front of the queue and `+ Last` to put it at the end.
 - Keeps played videos in the local queue history, greyed out, instead of deleting them.
 - Automatically opens the next queued video when the current one ends.
-- Reopens to the last YouTube page and resumes saved video position.
+- Reopens to the last YouTube page and resumes the saved video timestamp from close.
 - Opens watch pages in Theater mode.
 - Adds a playback speed overlay from `0.10x` to `5.00x` in `0.10x` steps.
 - Adds opt-in SponsorBlock-compatible sponsor skipping with `Sponsor`, `Quiet`, and `Aggro` modes.
