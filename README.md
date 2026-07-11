@@ -37,7 +37,7 @@ Use the mode button next to `SB` to choose what gets skipped:
 ## Release
 
 - Current version: `0.5.1`
-- Last shipped: `2026-06-14`
+- Last shipped: `2026-07-11`
 - Latest release: https://github.com/Leopere/youtube-up-next-app/releases/latest
 - macOS app zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/TubeTV-macOS-Electron-arm64.zip
 - Ship command: `./ship.sh "<commit message>"`
