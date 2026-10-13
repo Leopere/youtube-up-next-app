@@ -104,6 +104,10 @@ html.ytun-retro-tube .ytun-retro-overlay::before {
   font: inherit;
 }
 
+.ytun-filtered-content {
+  display: none !important;
+}
+
 .ytun-toggle,
 .ytun-add-current {
   align-items: center;
@@ -569,10 +573,14 @@ html.ytun-retro-tube .ytun-retro-overlay::before {
 .ytun-thumb-actions {
   display: flex;
   gap: 6px;
+  opacity: 1 !important;
+  pointer-events: auto !important;
   position: absolute;
   right: 8px;
   top: 8px;
-  z-index: 20;
+  touch-action: manipulation;
+  visibility: visible !important;
+  z-index: 1000;
 }
 
 .ytun-thumb-button {
@@ -586,12 +594,13 @@ html.ytun-retro-tube .ytun-retro-overlay::before {
   font-family: Roboto, Arial, sans-serif;
   font-size: 12px;
   font-weight: 700;
-  height: 28px;
+  height: 34px;
   line-height: 1;
   justify-content: center;
-  max-width: 76px;
+  max-width: 82px;
+  min-width: 64px;
   overflow: hidden;
-  padding: 0 9px;
+  padding: 0 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

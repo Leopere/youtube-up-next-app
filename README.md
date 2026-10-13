@@ -15,7 +15,11 @@ An Electron desktop app for YouTube that adds a local Up Next queue side pane, s
 - Reopens to the last YouTube page and resumes the saved video timestamp from close.
 - Opens watch pages in Theater mode.
 - Adds a playback speed overlay from `0.10x` to `5.00x` in `0.10x` steps.
+- Press `Command+1` through `Command+5` to set playback speed directly from `1.00x` through `5.00x`.
 - Adds opt-in SponsorBlock-compatible sponsor skipping with `Sponsor`, `Quiet`, and `Aggro` modes.
+- Blocks YouTube Playables and removes Playables links and shelves.
+- Keeps Shorts on the dedicated Shorts page while hiding Shorts shelves and cards from regular feeds.
+- Keeps the existing thumbnail `+ Next` and `+ Last` actions visible with larger click targets.
 - When focus isn't in a text field, press `R` to switch to a random retro TV filter, including green phosphor, black and white, red, amber, tube TV, and normal.
 - When focus isn't in a text field, press `[` or `]` to change playback speed by `0.10x`. Press `\` to reset it to `1.00x`.
 - Close or minimize the window to hide TubeTV in the macOS menu bar. Use the menu-bar icon to show, hide, or quit the app.
@@ -39,7 +43,7 @@ Use the mode button next to `SB` to choose what gets skipped:
 
 ## Release
 
-- Current version: `0.6.0`
+- Current version: `0.7.0`
 - Last shipped: `2026-10-13`
 - Latest release: https://github.com/Leopere/youtube-up-next-app/releases/latest
 - macOS app zip: https://github.com/Leopere/youtube-up-next-app/releases/latest/download/TubeTV-macOS-Electron-arm64.zip

@@ -79,6 +79,15 @@ function isYouTubeUrl(urlValue) {
   }
 }
 
+function isYouTubePlayablesUrl(urlValue) {
+  try {
+    const url = new URL(urlValue);
+    return isYouTubeUrl(url.href) && /^\/(?:playables(?:\/|$)|feed\/playables\/?$)/.test(url.pathname);
+  } catch (_error) {
+    return false;
+  }
+}
+
 function parseYouTubeVideoId(urlValue) {
   try {
     const url = new URL(urlValue);
@@ -121,7 +130,7 @@ function writeAppState(values) {
 function resumeUrlFromState() {
   const state = readAppState();
   const lastUrl = isYouTubeUrl(state.lastUrl) ? state.lastUrl : "";
-  if (!lastUrl) {
+  if (!lastUrl || isYouTubePlayablesUrl(lastUrl)) {
     return "";
   }
 
@@ -271,9 +280,9 @@ function chromeCompatibleUserAgent() {
 }
 
 function loadAppUrl(targetWindow, url) {
-  const targetUrl = url || START_URL;
+  const targetUrl = url && !isYouTubePlayablesUrl(url) ? url : START_URL;
   saveLastUrl(targetUrl);
-  targetWindow.loadURL(url || START_URL, {
+  targetWindow.loadURL(targetUrl, {
     userAgent: chromeCompatibleUserAgent()
   });
 }
@@ -558,7 +567,9 @@ function createWindow(startUrl) {
 
   mainWindow.webContents.setUserAgent(userAgent);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isAppUrl(url)) {
+    if (isYouTubePlayablesUrl(url)) {
+      loadAppUrl(mainWindow, START_URL);
+    } else if (isAppUrl(url)) {
       loadAppUrl(mainWindow, url);
     } else if (isHttpUrl(url)) {
       shell.openExternal(url);
@@ -568,6 +579,12 @@ function createWindow(startUrl) {
   });
 
   mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (isYouTubePlayablesUrl(url)) {
+      event.preventDefault();
+      loadAppUrl(mainWindow, START_URL);
+      return;
+    }
+
     if (isAppUrl(url) || url.startsWith("about:")) {
       return;
     }
@@ -577,10 +594,26 @@ function createWindow(startUrl) {
       shell.openExternal(url);
     }
   });
+  mainWindow.webContents.on("will-redirect", (event, url) => {
+    if (!isYouTubePlayablesUrl(url)) {
+      return;
+    }
+
+    event.preventDefault();
+    loadAppUrl(mainWindow, START_URL);
+  });
   mainWindow.webContents.on("did-navigate", (_event, url) => {
+    if (isYouTubePlayablesUrl(url)) {
+      loadAppUrl(mainWindow, START_URL);
+      return;
+    }
     saveLastUrl(url);
   });
   mainWindow.webContents.on("did-navigate-in-page", (_event, url) => {
+    if (isYouTubePlayablesUrl(url)) {
+      loadAppUrl(mainWindow, START_URL);
+      return;
+    }
     saveLastUrl(url);
   });
   mainWindow.on("close", (event) => {
