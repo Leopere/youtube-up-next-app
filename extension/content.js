@@ -342,6 +342,33 @@
     setRetroTvMode(randomRetroTvMode());
   }
 
+  function handlePlaybackSpeedKeydown(event) {
+    const key = String(event.key);
+    if (
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.shiftKey ||
+      !["[", "]", "\\"].includes(key) ||
+      isEditableTarget(event.target)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const nextSpeed = key === "["
+      ? playbackSpeed - SPEED_STEP
+      : key === "]"
+        ? playbackSpeed + SPEED_STEP
+        : 1;
+    setPlaybackSpeed(nextSpeed);
+    showToast(`Speed ${formatPlaybackSpeed(nextSpeed)}`);
+  }
+
   function sponsorBlockCacheKey(videoId, mode) {
     return `${videoId}:${normalizeSponsorBlockMode(mode)}`;
   }
@@ -1697,6 +1724,7 @@
     render();
     scheduleScan();
     window.addEventListener("keydown", handleRetroTvKeydown, true);
+    window.addEventListener("keydown", handlePlaybackSpeedKeydown, true);
 
     if (activeTab === "watch-later") {
       loadWatchLater();

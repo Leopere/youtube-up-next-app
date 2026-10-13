@@ -6,6 +6,7 @@ APP_BUNDLE_ID="ca.nixc.tubetv"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELEASE_DIR="$ROOT_DIR/release"
 VERSION="$(cd "$ROOT_DIR" && node -p "require('./package.json').version")"
+ELECTRON_VERSION="${ELECTRON_VERSION:-$(cd "$ROOT_DIR" && node -p "require('./node_modules/electron/package.json').version")}"
 
 ARCH="${ELECTRON_ARCH:-$(uname -m)}"
 case "$ARCH" in
@@ -35,11 +36,17 @@ mkdir -p "$RELEASE_DIR"
 rm -rf "$RELEASE_DIR/${APP_NAME}-darwin-${PACKAGER_ARCH}" "$RELEASE_DIR/${APP_NAME}.app"
 rm -f "$RELEASE_DIR/TubeTV-macOS-Electron-${PACKAGER_ARCH}.zip"
 
+PACKAGER_DOWNLOAD_ARGS=(--electron-version="$ELECTRON_VERSION")
+if [ -n "${ELECTRON_ZIP_DIR:-}" ]; then
+  PACKAGER_DOWNLOAD_ARGS+=(--electron-zip-dir="$ELECTRON_ZIP_DIR")
+fi
+
 (
   cd "$ROOT_DIR"
   npx electron-packager "$ROOT_DIR" "$APP_NAME" \
     --platform=darwin \
     --arch="$PACKAGER_ARCH" \
+    "${PACKAGER_DOWNLOAD_ARGS[@]}" \
     --out="$RELEASE_DIR" \
     --overwrite \
     --app-bundle-id="$APP_BUNDLE_ID" \

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TubeTV",
   "description": "Adds TubeTV queue, playback speed, retro TV, and SponsorBlock controls to YouTube.",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "permissions": ["storage"],
   "host_permissions": [
     "https://www.youtube.com/*",

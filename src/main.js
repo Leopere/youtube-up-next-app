@@ -5,6 +5,7 @@ const {
   app,
   BrowserWindow,
   Menu,
+  Tray,
   dialog,
   nativeImage,
   session,
@@ -18,6 +19,8 @@ const WINDOW_WIDTH = 1600;
 const WINDOW_HEIGHT = 900;
 const WINDOW_X = 80;
 const WINDOW_Y = 60;
+const MIN_WINDOW_WIDTH = 640;
+const MIN_WINDOW_HEIGHT = 400;
 const APP_STATE_FILE = "app-state.json";
 const PLAYBACK_RESUME_MIN_SECONDS = 5;
 const PLAYBACK_RESUME_END_PADDING = 10;
@@ -28,6 +31,9 @@ app.setPath("userData", path.join(app.getPath("appData"), USER_DATA_NAME));
 
 let mainWindow;
 let pendingOpenUrl;
+let tray;
+let quitAfterCapture = false;
+let quitCaptureInProgress = false;
 
 function isHttpUrl(urlValue) {
   try {
@@ -277,14 +283,85 @@ function openAppUrl(url) {
     return false;
   }
 
+  showMainWindow();
+  loadAppUrl(mainWindow, url);
+  return true;
+}
+
+function updateTrayMenu() {
+  if (!tray) {
+    return;
+  }
+
+  const windowVisible = Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
+  tray.setContextMenu(Menu.buildFromTemplate([
+    {
+      label: windowVisible ? "Hide TubeTV" : "Show TubeTV",
+      click: windowVisible ? hideMainWindowToTray : showMainWindow
+    },
+    { type: "separator" },
+    {
+      label: "Quit TubeTV",
+      click() {
+        app.quit();
+      }
+    }
+  ]));
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    mainWindow = createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
+  }
+
+  if (process.platform === "darwin") {
+    app.dock.show();
+  }
   if (mainWindow.isMinimized()) {
     mainWindow.restore();
   }
 
   mainWindow.show();
   mainWindow.focus();
-  loadAppUrl(mainWindow, url);
-  return true;
+  updateTrayMenu();
+}
+
+function hideMainWindowToTray() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  const targetWindow = mainWindow;
+  targetWindow.hide();
+  if (process.platform === "darwin") {
+    app.dock.hide();
+  }
+  updateTrayMenu();
+  capturePlaybackState(targetWindow);
+}
+
+function createTray() {
+  if (tray) {
+    return;
+  }
+
+  const icon = nativeImage
+    .createFromPath(path.join(__dirname, "..", "assets", "youtube-favicon-144.png"))
+    .resize({ width: 18, height: 18 });
+  if (icon.isEmpty()) {
+    throw new Error("TubeTV menu-bar icon could not be loaded.");
+  }
+
+  tray = new Tray(icon);
+  tray.setToolTip(APP_NAME);
+  tray.on("click", () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      hideMainWindowToTray();
+    } else {
+      showMainWindow();
+    }
+  });
+  updateTrayMenu();
 }
 
 async function loadTubeTvExtension() {
@@ -461,17 +538,17 @@ function configureSession() {
 
 function createWindow(startUrl) {
   const userAgent = chromeCompatibleUserAgent();
-  let capturedBeforeClose = false;
   mainWindow = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
     x: WINDOW_X,
     y: WINDOW_Y,
-    minWidth: 1024,
-    minHeight: 640,
+    minWidth: MIN_WINDOW_WIDTH,
+    minHeight: MIN_WINDOW_HEIGHT,
     title: APP_NAME,
     backgroundColor: "#0f0f0f",
     webPreferences: {
+      backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -507,19 +584,25 @@ function createWindow(startUrl) {
     saveLastUrl(url);
   });
   mainWindow.on("close", (event) => {
-    if (capturedBeforeClose) {
+    if (quitAfterCapture) {
       saveLastUrl(mainWindow.webContents.getURL());
       return;
     }
 
     event.preventDefault();
-    capturePlaybackState(mainWindow).finally(() => {
-      capturedBeforeClose = true;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.close();
-      }
-    });
+    if (tray) {
+      hideMainWindowToTray();
+    } else {
+      app.quit();
+    }
   });
+  mainWindow.on("minimize", () => {
+    if (tray) {
+      hideMainWindowToTray();
+    }
+  });
+  mainWindow.on("show", updateTrayMenu);
+  mainWindow.on("hide", updateTrayMenu);
 
   loadAppUrl(mainWindow, startUrl);
   createMenu(mainWindow);
@@ -538,13 +621,7 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
 
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.show();
-      mainWindow.focus();
-    }
+    showMainWindow();
   });
 
   app.on("open-url", (event, url) => {
@@ -570,6 +647,15 @@ if (!app.requestSingleInstanceLock()) {
     }
 
     createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
+    try {
+      createTray();
+    } catch (error) {
+      console.error("Could not create the TubeTV menu-bar item:", error);
+      dialog.showErrorBox(
+        "TubeTV menu-bar item did not load",
+        `TubeTV will keep running as a normal window.\n\n${error.message || error}`
+      );
+    }
 
     if (extensionError) {
       dialog.showErrorBox(
@@ -582,8 +668,31 @@ if (!app.requestSingleInstanceLock()) {
       if (BrowserWindow.getAllWindows().length === 0) {
         createWindow(pendingOpenUrl || resumeUrlFromState() || START_URL);
       } else if (mainWindow) {
-        mainWindow.show();
+        showMainWindow();
       }
+    });
+  });
+
+  app.on("before-quit", (event) => {
+    if (quitAfterCapture) {
+      return;
+    }
+
+    event.preventDefault();
+    if (quitCaptureInProgress) {
+      return;
+    }
+
+    quitCaptureInProgress = true;
+    capturePlaybackState(mainWindow).finally(() => {
+      quitAfterCapture = true;
+      app.quit();
+      setImmediate(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          quitAfterCapture = false;
+          quitCaptureInProgress = false;
+        }
+      });
     });
   });
 

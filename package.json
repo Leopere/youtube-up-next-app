@@ -1,6 +1,6 @@
 {
   "name": "tubetv",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Electron desktop app for TubeTV's bundled YouTube queue UI.",
   "main": "src/main.js",
   "scripts": {

@@ -626,7 +626,7 @@ html.ytun-retro-tube .ytun-retro-overlay::before {
   transform: translate(-50%, 0);
 }
 
-@media (max-width: 560px) {
+@media (max-width: 720px) {
   .ytun-speed-modulator {
     bottom: 74px;
     grid-template-columns: 30px 60px 30px 34px 64px;
